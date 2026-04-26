@@ -11,7 +11,7 @@
 
 1. Clone Repository
 ```
-git clone https://github.com/themewagon/pms-investment-services.git
+git clone https://github.com/FarelTech/hargai
 ```
 2. Install Dependencies
 ```
