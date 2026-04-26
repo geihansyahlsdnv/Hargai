@@ -13,7 +13,7 @@ import {
   Circle,
   Database,
 } from "lucide-react"
-import { useState, useRef, useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 
@@ -40,18 +40,18 @@ type DetectWasteResponse = {
 
 const normalizeConfidence = (value: unknown): number => {
   const numberValue = Number(value)
-
   if (Number.isNaN(numberValue)) return 0
-
-  if (numberValue > 1) {
-    return numberValue / 100
-  }
-
+  if (numberValue > 1) return numberValue / 100
   return numberValue
 }
 
 const normalizeBBox = (item: any) => {
-  const bbox = item?.bbox || item?.box || item?.bounding_box || item?.boundingBox || {}
+  const bbox =
+    item?.bbox ||
+    item?.box ||
+    item?.bounding_box ||
+    item?.boundingBox ||
+    {}
 
   return {
     x1: Number(bbox?.x1 ?? bbox?.xmin ?? bbox?.left ?? item?.x1 ?? item?.xmin ?? 0),
@@ -70,18 +70,15 @@ const getRawDetections = (result: any): any[] => {
     result.predictions,
     result.objects,
     result.items,
-    result.data,
     result.data?.detections,
     result.data?.results,
     result.data?.predictions,
-    result.output,
     result.output?.detections,
     result.output?.results,
     result.output?.predictions,
   ]
 
   const foundArray = possibleArrays.find((value) => Array.isArray(value))
-
   return Array.isArray(foundArray) ? foundArray : []
 }
 
@@ -96,8 +93,6 @@ const getLabelFromItem = (item: any, index: number): string => {
       item?.prediction ??
       item?.predicted_class ??
       item?.predicted_label ??
-      item?.predictedClass ??
-      item?.predictedLabel ??
       item?.cls ??
       item?.object ??
       item?.type ??
@@ -145,15 +140,10 @@ const getDetections = (result: any): BackendDetection[] => {
     result.data?.top_label ??
     result.data?.prediction ??
     result.data?.label ??
-    result.data?.class ??
-    result.data?.class_name ??
-    result.data?.predicted_class ??
-    result.data?.predicted_label ??
     result.output?.top_prediction ??
     result.output?.top_label ??
     result.output?.prediction ??
-    result.output?.label ??
-    result.output?.class_name
+    result.output?.label
 
   if (!singleLabel) return []
 
@@ -201,15 +191,10 @@ const getTopPrediction = (result: any): string => {
       result.data?.top_label ??
       result.data?.prediction ??
       result.data?.label ??
-      result.data?.class ??
-      result.data?.class_name ??
-      result.data?.predicted_class ??
-      result.data?.predicted_label ??
       result.output?.top_prediction ??
       result.output?.top_label ??
       result.output?.prediction ??
       result.output?.label ??
-      result.output?.class_name ??
       detections[0]?.label ??
       "Tidak diketahui"
   )
@@ -236,7 +221,7 @@ const normalizeDetectResponse = (result: any): DetectWasteResponse => {
   const topPrediction = getTopPrediction(result)
 
   return {
-    audit_id: result?.audit_id ?? result?.auditId ?? result?.id ?? "-",
+    audit_id: result?.audit_id ?? result?.auditId ?? result?.id ?? `local-${Date.now()}`,
     image_url: getImageUrl(result),
     detections,
     top_prediction: topPrediction,
@@ -358,12 +343,12 @@ export default function WasteDetectionPage() {
         },
       })
 
-      console.log("RAW BACKEND RESPONSE:", data)
-
       const normalizedData = {
         ...normalizeDetectResponse(data),
         preview_image: preview,
       }
+
+      console.log("RAW BACKEND RESPONSE:", data)
 
       setRawBackendResponse(JSON.stringify(data, null, 2))
       setDetectResult(normalizedData)
@@ -393,9 +378,6 @@ export default function WasteDetectionPage() {
       } else if (!status) {
         message = "Koneksi ke server gagal. Cek backend dan base URL."
       }
-
-      console.error("DETECT ERROR:", error)
-      console.error("BACKEND ERROR DATA:", errorData)
 
       setErrorMessage(message)
       setDebugInfo(`Error [${status || "Network"}]: ${error?.message || "Unknown error"}`)
@@ -527,8 +509,12 @@ export default function WasteDetectionPage() {
                     className="w-full border-2 border-dashed border-cyan-600 rounded-lg p-6 hover:bg-cyan-50 transition-colors text-center"
                   >
                     <Camera className="h-8 w-8 text-cyan-600 mx-auto mb-3" />
-                    <p className="font-serif font-bold text-gray-900 mb-1">Ambil Foto</p>
-                    <p className="text-sm text-gray-600 font-sans">Gunakan kamera perangkat</p>
+                    <p className="font-serif font-bold text-gray-900 mb-1">
+                      Ambil Foto
+                    </p>
+                    <p className="text-sm text-gray-600 font-sans">
+                      Gunakan kamera perangkat
+                    </p>
                   </button>
                 ) : (
                   <button
@@ -536,7 +522,9 @@ export default function WasteDetectionPage() {
                     className="w-full border-2 border-dashed border-red-600 rounded-lg p-6 hover:bg-red-50 transition-colors text-center"
                   >
                     <X className="h-8 w-8 text-red-600 mx-auto mb-3" />
-                    <p className="font-serif font-bold text-gray-900 mb-1">Tutup Kamera</p>
+                    <p className="font-serif font-bold text-gray-900 mb-1">
+                      Tutup Kamera
+                    </p>
                   </button>
                 )}
 
@@ -546,8 +534,12 @@ export default function WasteDetectionPage() {
                     className="w-full border-2 border-dashed border-amber-600 rounded-lg p-6 hover:bg-amber-50 transition-colors text-center"
                   >
                     <Upload className="h-8 w-8 text-amber-600 mx-auto mb-3" />
-                    <p className="font-serif font-bold text-gray-900 mb-1">Unggah Gambar</p>
-                    <p className="text-sm text-gray-600 font-sans">JPG, JPEG, PNG maksimal 5MB</p>
+                    <p className="font-serif font-bold text-gray-900 mb-1">
+                      Unggah Gambar
+                    </p>
+                    <p className="text-sm text-gray-600 font-sans">
+                      JPG, JPEG, PNG maksimal 5MB
+                    </p>
                   </button>
                 )}
 
@@ -566,7 +558,9 @@ export default function WasteDetectionPage() {
                   <div className="flex items-start space-x-3">
                     <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm text-red-800 font-semibold">{errorMessage}</p>
+                      <p className="text-sm text-red-800 font-semibold">
+                        {errorMessage}
+                      </p>
                       {debugInfo ? (
                         <p className="text-xs text-red-600 mt-2 font-mono break-words">
                           {debugInfo}
@@ -581,7 +575,9 @@ export default function WasteDetectionPage() {
             {debugInfo && !errorMessage ? (
               <Card className="border-0 shadow-lg bg-blue-50">
                 <CardContent className="pt-6">
-                  <p className="text-sm text-blue-800 font-mono break-words">{debugInfo}</p>
+                  <p className="text-sm text-blue-800 font-mono break-words">
+                    {debugInfo}
+                  </p>
                 </CardContent>
               </Card>
             ) : null}
@@ -590,7 +586,9 @@ export default function WasteDetectionPage() {
               <Card className="border-0 shadow-lg bg-white">
                 <CardContent className="pt-6">
                   <p className="text-sm text-gray-600">File aktif:</p>
-                  <p className="text-sm font-mono text-gray-900 break-words">{selectedFile.name}</p>
+                  <p className="text-sm font-mono text-gray-900 break-words">
+                    {selectedFile.name}
+                  </p>
                 </CardContent>
               </Card>
             ) : null}
@@ -650,7 +648,11 @@ export default function WasteDetectionPage() {
 
                 <CardContent>
                   <div className="relative bg-gray-900 rounded-lg overflow-hidden">
-                    <img src={previewImage} alt="Preview" className="w-full h-auto" />
+                    <img
+                      src={previewImage}
+                      alt="Preview"
+                      className="w-full h-auto"
+                    />
 
                     {isLoading ? (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -672,7 +674,9 @@ export default function WasteDetectionPage() {
                     <CardTitle className="text-xl font-serif font-bold text-gray-900">
                       Hasil Deteksi Backend AI
                     </CardTitle>
-                    <Badge className="bg-green-100 text-green-800">Berhasil</Badge>
+                    <Badge className="bg-green-100 text-green-800">
+                      Berhasil
+                    </Badge>
                   </div>
                 </CardHeader>
 
@@ -680,7 +684,9 @@ export default function WasteDetectionPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <Card className="border border-gray-200 bg-cyan-50">
                       <CardContent className="pt-4">
-                        <p className="text-sm text-gray-600 mb-1">Total Deteksi</p>
+                        <p className="text-sm text-gray-600 mb-1">
+                          Total Deteksi
+                        </p>
                         <p className="text-3xl font-serif font-bold text-cyan-600">
                           {detections.length}
                         </p>
@@ -689,7 +695,9 @@ export default function WasteDetectionPage() {
 
                     <Card className="border border-gray-200 bg-amber-50">
                       <CardContent className="pt-4">
-                        <p className="text-sm text-gray-600 mb-1">Prediksi Utama</p>
+                        <p className="text-sm text-gray-600 mb-1">
+                          Prediksi Utama
+                        </p>
                         <p className="text-2xl font-serif font-bold text-amber-600">
                           {topPrediction}
                         </p>
@@ -698,7 +706,9 @@ export default function WasteDetectionPage() {
                   </div>
 
                   <div className="space-y-3">
-                    <h3 className="font-serif font-bold text-gray-900">Detail Deteksi</h3>
+                    <h3 className="font-serif font-bold text-gray-900">
+                      Detail Deteksi
+                    </h3>
 
                     <div className="space-y-2">
                       {detections.length > 0 ? (
@@ -712,8 +722,10 @@ export default function WasteDetectionPage() {
                                 {result.label}
                               </p>
                               <p className="text-sm text-gray-500">
-                                BBox: ({result.bbox?.x1 ?? "-"}, {result.bbox?.y1 ?? "-"}) - (
-                                {result.bbox?.x2 ?? "-"}, {result.bbox?.y2 ?? "-"})
+                                BBox: ({result.bbox?.x1 ?? "-"},{" "}
+                                {result.bbox?.y1 ?? "-"}) - (
+                                {result.bbox?.x2 ?? "-"},{" "}
+                                {result.bbox?.y2 ?? "-"})
                               </p>
                             </div>
 
@@ -746,18 +758,21 @@ export default function WasteDetectionPage() {
                   ) : null}
 
                   <Button
-                  onClick={() => {
-                    if (detectResult) {
-                      sessionStorage.setItem("latest_detection_result", JSON.stringify(detectResult))
-                    }
+                    onClick={() => {
+                      if (detectResult) {
+                        sessionStorage.setItem(
+                          "latest_detection_result",
+                          JSON.stringify(detectResult)
+                        )
+                      }
 
-                    router.push("/blog")
-                  }}
-                  className="w-full bg-amber-600 hover:bg-amber-700 text-white py-6 text-lg font-bold"
-                >
-                  <Database className="h-5 w-5 mr-2" />
-                  Lanjut ke Audit
-                </Button>
+                      router.push("/audits")
+                    }}
+                    className="w-full bg-amber-600 hover:bg-amber-700 text-white py-6 text-lg font-bold"
+                  >
+                    <Database className="h-5 w-5 mr-2" />
+                    Lanjut ke Audit
+                  </Button>
                 </CardContent>
               </Card>
             ) : null}

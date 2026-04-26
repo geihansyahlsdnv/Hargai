@@ -84,7 +84,12 @@ function normalizeAuditData(rawData: unknown): DetectWasteResponse | null {
     detections,
     top_prediction: topPrediction,
     top_label: topPrediction,
-    created_at: String(data.created_at ?? data.createdAt ?? data.timestamp ?? new Date().toISOString()),
+    created_at: String(
+      data.created_at ??
+        data.createdAt ??
+        data.timestamp ??
+        new Date().toISOString()
+    ),
   }
 }
 
@@ -151,52 +156,50 @@ export default function AuditPage() {
   }, [mounted, latestAudit?.created_at])
 
   const handleSaveToHistory = () => {
-  if (!latestAudit) return
+    if (!latestAudit) return
 
-  const history = getSavedHistory()
+    const history = getSavedHistory()
 
-  const itemToSave: DetectWasteResponse = {
-    ...latestAudit,
-    audit_id:
-      latestAudit.audit_id && latestAudit.audit_id !== "-"
-        ? latestAudit.audit_id
-        : `local-${Date.now()}`,
-    top_label: latestAudit.top_prediction,
-    created_at: latestAudit.created_at || new Date().toISOString(),
-
-    // Jangan simpan base64 preview_image ke localStorage.
-    // Ini penyebab quota exceeded.
-    image_url: latestAudit.image_url || "",
-    preview_image: "",
-  }
-
-  const alreadyExists = history.some(
-    (item) => String(item.audit_id) === String(itemToSave.audit_id)
-  )
-
-  const nextHistory = alreadyExists
-    ? history.map((item) =>
-        String(item.audit_id) === String(itemToSave.audit_id) ? itemToSave : item
-      )
-    : [itemToSave, ...history]
-
-  try {
-    localStorage.setItem("saved_audit_history", JSON.stringify(nextHistory))
-    setSaved(true)
-  } catch (error) {
-    console.error("Gagal menyimpan ke riwayat:", error)
-
-    // Fallback: simpan hanya 20 data terbaru tanpa gambar
-    const compactHistory = nextHistory.slice(0, 20).map((item) => ({
-      ...item,
-      image_url: item.image_url?.startsWith("data:") ? "" : item.image_url,
+    const itemToSave: DetectWasteResponse = {
+      ...latestAudit,
+      audit_id:
+        latestAudit.audit_id && latestAudit.audit_id !== "-"
+          ? latestAudit.audit_id
+          : `local-${Date.now()}`,
+      top_label: latestAudit.top_prediction,
+      created_at: latestAudit.created_at || new Date().toISOString(),
+      image_url: latestAudit.image_url || "",
       preview_image: "",
-    }))
+    }
 
-    localStorage.setItem("saved_audit_history", JSON.stringify(compactHistory))
-    setSaved(true)
+    const alreadyExists = history.some(
+      (item) => String(item.audit_id) === String(itemToSave.audit_id)
+    )
+
+    const nextHistory = alreadyExists
+      ? history.map((item) =>
+          String(item.audit_id) === String(itemToSave.audit_id)
+            ? itemToSave
+            : item
+        )
+      : [itemToSave, ...history]
+
+    try {
+      localStorage.setItem("saved_audit_history", JSON.stringify(nextHistory))
+      setSaved(true)
+    } catch (error) {
+      console.error("Gagal menyimpan ke riwayat:", error)
+
+      const compactHistory = nextHistory.slice(0, 20).map((item) => ({
+        ...item,
+        image_url: item.image_url?.startsWith("data:") ? "" : item.image_url,
+        preview_image: "",
+      }))
+
+      localStorage.setItem("saved_audit_history", JSON.stringify(compactHistory))
+      setSaved(true)
+    }
   }
-}
 
   return (
     <div className="min-h-screen bg-white">
@@ -355,7 +358,7 @@ export default function AuditPage() {
                       )}
                     </Button>
 
-                    <Link href="/services">
+                    <Link href="/history">
                       <Button variant="outline" className="w-full">
                         <History className="h-4 w-4 mr-2" />
                         Lihat Riwayat

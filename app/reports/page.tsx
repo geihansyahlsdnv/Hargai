@@ -2,8 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Navigation from "@/components/navigation"
-import { api } from "@/lib/api"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import {
   ResponsiveContainer,
   BarChart,
@@ -21,33 +26,86 @@ import {
 } from "recharts"
 import { BarChart3, PieChart as PieChartIcon, CalendarRange } from "lucide-react"
 
+type DetectionItem = {
+  label: string
+  confidence: number
+  bbox: {
+    x1: number
+    y1: number
+    x2: number
+    y2: number
+  }
+}
+
 type AuditHistoryItem = {
-  audit_id: number
+  audit_id: number | string
   image_url: string
+  preview_image?: string
+  detections: DetectionItem[]
   top_label: string
+  top_prediction?: string
   created_at: string
 }
 
 const pieColors = ["#10b981", "#06b6d4", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b"]
+
+function normalizeHistoryItem(item: any): AuditHistoryItem {
+  const detections = Array.isArray(item?.detections)
+    ? item.detections.map((det: any) => ({
+        label: String(det?.label ?? det?.class_name ?? det?.name ?? "Tidak diketahui"),
+        confidence: Number(det?.confidence ?? det?.score ?? det?.conf ?? 0),
+        bbox: {
+          x1: Number(det?.bbox?.x1 ?? det?.x1 ?? 0),
+          y1: Number(det?.bbox?.y1 ?? det?.y1 ?? 0),
+          x2: Number(det?.bbox?.x2 ?? det?.x2 ?? 0),
+          y2: Number(det?.bbox?.y2 ?? det?.y2 ?? 0),
+        },
+      }))
+    : []
+
+  const topLabel = String(
+    item?.top_label ??
+      item?.top_prediction ??
+      item?.prediction ??
+      detections[0]?.label ??
+      "Tidak diketahui"
+  )
+
+  return {
+    audit_id: item?.audit_id ?? item?.id ?? `local-${Date.now()}`,
+    image_url: String(item?.image_url ?? item?.imageUrl ?? ""),
+    preview_image: String(item?.preview_image ?? item?.previewImage ?? ""),
+    detections,
+    top_label: topLabel,
+    top_prediction: topLabel,
+    created_at: String(item?.created_at ?? item?.createdAt ?? new Date().toISOString()),
+  }
+}
 
 export default function ReportsAnalyticsPage() {
   const [historyData, setHistoryData] = useState<AuditHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchHistory = async () => {
+    const loadHistory = () => {
       try {
-        const { data } = await api.get<AuditHistoryItem[]>("/audits/history")
-        setHistoryData(Array.isArray(data) ? data : [])
+        const raw = localStorage.getItem("saved_audit_history")
+        const parsed = raw ? JSON.parse(raw) : []
+
+        const normalized = Array.isArray(parsed)
+          ? parsed.map((item) => normalizeHistoryItem(item))
+          : []
+
+        setHistoryData(normalized)
       } catch (error) {
-        console.error("Gagal mengambil history laporan:", error)
+        console.error("Gagal membaca data laporan:", error)
         setHistoryData([])
       } finally {
         setLoading(false)
       }
     }
 
-    fetchHistory()
+    loadHistory()
   }, [])
 
   const distributionData = useMemo(() => {
@@ -90,9 +148,12 @@ export default function ReportsAnalyticsPage() {
 
   const dominantCategory = useMemo(() => {
     if (!distributionData.length) return "-"
-
     return [...distributionData].sort((a, b) => b.value - a.value)[0].name
   }, [distributionData])
+
+  const totalObjects = useMemo(() => {
+    return historyData.reduce((sum, item) => sum + item.detections.length, 0)
+  }, [historyData])
 
   if (loading) {
     return (
@@ -106,7 +167,7 @@ export default function ReportsAnalyticsPage() {
                 Laporan & <span className="text-cyan-600">Analitik</span>
               </h1>
               <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                Analisis audit dari backend AI.
+                Memuat data laporan dari riwayat lokal.
               </p>
             </div>
           </div>
@@ -134,7 +195,7 @@ export default function ReportsAnalyticsPage() {
               Laporan & <span className="text-cyan-600">Analitik</span>
             </h1>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Analisis audit dari backend AI.
+              Analisis audit berdasarkan riwayat deteksi yang tersimpan.
             </p>
           </div>
         </div>
@@ -142,12 +203,21 @@ export default function ReportsAnalyticsPage() {
 
       <section className="py-8">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
             <Card className="border-0 shadow-sm">
               <CardContent className="p-6">
                 <p className="text-sm text-slate-500 mb-1">Total Audit</p>
                 <h3 className="text-3xl font-bold text-slate-900">
                   {historyData.length}
+                </h3>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-sm">
+              <CardContent className="p-6">
+                <p className="text-sm text-slate-500 mb-1">Total Objek</p>
+                <h3 className="text-3xl font-bold text-slate-900">
+                  {totalObjects}
                 </h3>
               </CardContent>
             </Card>
@@ -179,7 +249,7 @@ export default function ReportsAnalyticsPage() {
             <Card className="border-0 shadow-sm">
               <CardContent className="p-8 text-center">
                 <p className="text-slate-500 text-lg">
-                  Belum ada data audit untuk ditampilkan.
+                  Belum ada data audit untuk dianalisis.
                 </p>
               </CardContent>
             </Card>
@@ -195,7 +265,7 @@ export default function ReportsAnalyticsPage() {
                   Distribusi Top Label
                 </CardTitle>
                 <CardDescription>
-                  Berdasarkan top_label dari endpoint history backend.
+                  Berdasarkan top_label dari riwayat deteksi.
                 </CardDescription>
               </CardHeader>
 
@@ -227,7 +297,7 @@ export default function ReportsAnalyticsPage() {
                   Proporsi Kategori
                 </CardTitle>
                 <CardDescription>
-                  Distribusi kategori berdasarkan top label audit.
+                  Distribusi kategori berdasarkan hasil audit.
                 </CardDescription>
               </CardHeader>
 
@@ -266,7 +336,7 @@ export default function ReportsAnalyticsPage() {
                   Tren Audit Berdasarkan Waktu
                 </CardTitle>
                 <CardDescription>
-                  Jumlah audit per hari berdasarkan data backend.
+                  Jumlah audit per hari berdasarkan data riwayat.
                 </CardDescription>
               </CardHeader>
 

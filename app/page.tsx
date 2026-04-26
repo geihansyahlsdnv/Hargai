@@ -22,7 +22,7 @@ export default function HomePage() {
               Tingkatkan efisiensi pengumpulan dengan koneksi langsung ke industri daur ulang besar.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/consultation">
+              <Link href="/classify">
                 <Button size="lg" className="bg-cyan-600 hover:bg-cyan-700 text-white px-8 py-4 text-lg">
                   Mulai Klasifikasi
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -195,9 +195,9 @@ export default function HomePage() {
             <div>
               <h4 className="text-lg font-serif font-bold mb-4">Fitur Utama</h4>
               <ul className="space-y-2 text-gray-400 font-sans text-sm">
-                <li><Link href="/consultation" className="hover:text-cyan-400 transition-colors">Deteksi Sampah</Link></li>
-                <li><Link href="/services" className="hover:text-cyan-400 transition-colors">Audit & Laporan</Link></li>
-                <li><Link href="/testimonials" className="hover:text-cyan-400 transition-colors">Analitik</Link></li>
+                <li><Link href="/classify" className="hover:text-cyan-400 transition-colors">Deteksi Sampah</Link></li>
+                <li><Link href="/history" className="hover:text-cyan-400 transition-colors">Audit & Laporan</Link></li>
+                <li><Link href="/reports" className="hover:text-cyan-400 transition-colors">Analitik</Link></li>
               </ul>
             </div>
             <div>

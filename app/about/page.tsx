@@ -207,7 +207,7 @@ export default function AboutPage() {
           <p className="text-xl text-cyan-100 mb-8 font-sans">
             Mulai deteksi sekarang dan lihat kontribusi nyata Anda terhadap lingkungan.
           </p>
-          <Link href="/consultation">
+          <Link href="/classify">
             <Button size="lg" className="bg-white text-cyan-600 hover:bg-gray-100 px-8 py-4 text-lg font-sans">
               Coba Deteksi Sekarang
             </Button>
@@ -228,9 +228,9 @@ export default function AboutPage() {
             <div>
               <h4 className="text-lg font-serif font-bold mb-4">Fitur Utama</h4>
               <ul className="space-y-2 text-gray-400 font-sans text-sm">
-                <li><Link href="/consultation" className="hover:text-cyan-400 transition-colors">Deteksi Sampah</Link></li>
-                <li><Link href="/services" className="hover:text-cyan-400 transition-colors">Audit & Riwayat</Link></li>
-                <li><Link href="/testimonials" className="hover:text-cyan-400 transition-colors">Laporan Analitik</Link></li>
+                <li><Link href="/classify" className="hover:text-cyan-400 transition-colors">Deteksi Sampah</Link></li>
+                <li><Link href="/history" className="hover:text-cyan-400 transition-colors">Audit & Riwayat</Link></li>
+                <li><Link href="/reports" className="hover:text-cyan-400 transition-colors">Laporan Analitik</Link></li>
               </ul>
             </div>
             <div>

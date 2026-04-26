@@ -9,11 +9,11 @@ export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const navLinks = [
-    { href: "/pricing", label: "Profile" },
-    { href: "/consultation", label: "Klasifikasi" },
-    { href: "/blog", label: "Audit" },
-    { href: "/services", label: "Riwayat" },
-    { href: "/testimonials", label: "Laporan" },
+    { href: "/profile", label: "Profile" },
+    { href: "/classify", label: "Klasifikasi" },
+    { href: "/audits", label: "Audit" },
+    { href: "/history", label: "Riwayat" },
+    { href: "/reports", label: "Laporan" },
   ]
 
   return (
@@ -21,7 +21,10 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Link href="/" className="text-2xl font-serif font-black text-cyan-600">
+            <Link
+              href="/"
+              className="text-2xl font-serif font-black text-cyan-600"
+            >
               HargAI
             </Link>
 
@@ -59,8 +62,13 @@ export default function Navigation() {
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="text-gray-600 hover:text-cyan-600 p-2"
+              aria-label="Toggle menu"
             >
-              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              {isMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
             </button>
           </div>
         </div>

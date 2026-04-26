@@ -39,28 +39,36 @@ export default function ProfilePage() {
                 <>
                   <div>
                     <p className="text-sm text-gray-500">Nama</p>
-                    <p className="text-lg font-semibold text-gray-900">{user.name}</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {user.name}
+                    </p>
                   </div>
 
                   <div>
                     <p className="text-sm text-gray-500">Email</p>
-                    <p className="text-lg font-semibold text-gray-900">{user.email}</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {user.email}
+                    </p>
                   </div>
 
                   <div>
                     <p className="text-sm text-gray-500">Role</p>
-                    <p className="text-lg font-semibold text-cyan-700 uppercase">{user.role}</p>
+                    <p className="text-lg font-semibold text-cyan-700 uppercase">
+                      {user.role}
+                    </p>
                   </div>
 
                   <div>
                     <p className="text-sm text-gray-500">User ID</p>
-                    <p className="text-lg font-semibold text-gray-900">{user.id}</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {user.id}
+                    </p>
                   </div>
                 </>
               ) : (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
                   <p className="text-amber-800 text-sm">
-                    Belum ada data profil karena halaman ini tidak memakai login.
+                    Belum ada data profil karena halaman ini belum terhubung ke sistem login.
                   </p>
                 </div>
               )}

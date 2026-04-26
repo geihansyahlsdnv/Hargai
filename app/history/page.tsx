@@ -289,9 +289,13 @@ export default function DetectionHistoryPage() {
             ) : (
               <p className="text-gray-600 font-sans">
                 Menampilkan{" "}
-                <span className="font-bold text-gray-900">{filteredAndSorted.length}</span>{" "}
+                <span className="font-bold text-gray-900">
+                  {filteredAndSorted.length}
+                </span>{" "}
                 dari{" "}
-                <span className="font-bold text-gray-900">{auditHistory.length}</span>{" "}
+                <span className="font-bold text-gray-900">
+                  {auditHistory.length}
+                </span>{" "}
                 hasil deteksi
               </p>
             )}
@@ -336,7 +340,9 @@ export default function DetectionHistoryPage() {
 
                         <div className="lg:col-span-6 p-6 space-y-4">
                           <div>
-                            <p className="text-xs text-gray-500 mb-1">Prediksi Utama</p>
+                            <p className="text-xs text-gray-500 mb-1">
+                              Prediksi Utama
+                            </p>
                             <h3 className="text-2xl font-serif font-bold text-gray-900">
                               {audit.top_label}
                             </h3>
@@ -349,7 +355,8 @@ export default function DetectionHistoryPage() {
                                   key={`${audit.audit_id}-${det.label}-${index}`}
                                   className="bg-cyan-100 text-cyan-800"
                                 >
-                                  {det.label} {(Number(det.confidence || 0) * 100).toFixed(1)}%
+                                  {det.label}{" "}
+                                  {(Number(det.confidence || 0) * 100).toFixed(1)}%
                                 </Badge>
                               ))
                             ) : (
@@ -413,7 +420,7 @@ export default function DetectionHistoryPage() {
                   <p className="text-gray-500 font-sans mb-4">
                     Belum ada riwayat deteksi yang tersimpan.
                   </p>
-                  <Link href="/consultation">
+                  <Link href="/classify">
                     <Button className="bg-cyan-600 hover:bg-cyan-700 text-white">
                       Mulai Deteksi
                     </Button>
@@ -430,7 +437,9 @@ export default function DetectionHistoryPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="border-0 shadow-lg">
               <CardContent className="pt-6">
-                <p className="text-gray-600 text-sm font-sans mb-2">Total Audit</p>
+                <p className="text-gray-600 text-sm font-sans mb-2">
+                  Total Audit
+                </p>
                 <p className="text-4xl font-serif font-bold text-cyan-600">
                   {stats.totalDetections}
                 </p>
@@ -483,7 +492,7 @@ export default function DetectionHistoryPage() {
                 <p className="text-gray-600 font-sans mb-6">
                   Lihat laporan statistik dan visualisasi data trend deteksi sampah.
                 </p>
-                <Link href="/testimonials">
+                <Link href="/reports">
                   <Button className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">
                     Buka Laporan
                   </Button>
@@ -500,7 +509,7 @@ export default function DetectionHistoryPage() {
                 <p className="text-gray-600 font-sans mb-6">
                   Lakukan deteksi sampah baru menggunakan kamera atau upload gambar.
                 </p>
-                <Link href="/consultation">
+                <Link href="/classify">
                   <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white">
                     Mulai Deteksi
                   </Button>
@@ -551,7 +560,9 @@ export default function DetectionHistoryPage() {
               <div className="space-y-5">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="rounded-xl bg-cyan-50 p-4">
-                    <p className="text-sm text-gray-600 mb-1">Prediksi Utama</p>
+                    <p className="text-sm text-gray-600 mb-1">
+                      Prediksi Utama
+                    </p>
                     <p className="text-2xl font-serif font-bold text-cyan-700">
                       {selectedAudit.top_label}
                     </p>
@@ -585,13 +596,16 @@ export default function DetectionHistoryPage() {
                       >
                         <div className="flex items-center justify-between gap-4">
                           <div>
-                            <p className="font-bold text-gray-900">{det.label}</p>
-                            <p className="text-sm text-gray-500">
-                              Confidence: {(Number(det.confidence || 0) * 100).toFixed(1)}%
+                            <p className="font-bold text-gray-900">
+                              {det.label}
                             </p>
                             <p className="text-sm text-gray-500">
-                              BBox: ({det.bbox.x1}, {det.bbox.y1}) - ({det.bbox.x2},{" "}
-                              {det.bbox.y2})
+                              Confidence:{" "}
+                              {(Number(det.confidence || 0) * 100).toFixed(1)}%
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              BBox: ({det.bbox.x1}, {det.bbox.y1}) - (
+                              {det.bbox.x2}, {det.bbox.y2})
                             </p>
                           </div>
 
