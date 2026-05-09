@@ -1,12 +1,3 @@
-# PMS Next.js Finance Website Template
-
-#### Preview
-
- - [Demo](https://themewagon.github.io/pms-investment-services/)
-
-#### Download
- - [Download from ThemeWagon](https://themewagon.com/themes/pms-investment-services/)
-
 ## Getting Started
 
 1. Clone Repository

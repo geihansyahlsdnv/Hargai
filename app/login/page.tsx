@@ -1,28 +1,24 @@
 "use client"
 
-import type React from "react"
+import { useState, useMemo } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Navigation from "@/components/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Button } from "@/components/ui/button"
 import { Eye, EyeOff, ArrowRight, Shield } from "lucide-react"
 import Link from "next/link"
-import { useMemo, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
 import { login } from "@/lib/auth"
 
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-
-  const redirectTo = useMemo(() => {
-    return searchParams.get("redirect") || "/"
-  }, [searchParams])
+  const redirectTo = useMemo(() => searchParams.get("redirect") || "/", [searchParams])
 
   const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState("")
@@ -34,20 +30,17 @@ export default function LoginPage() {
     setIsSubmitting(true)
 
     try {
-      if (!email.trim() || !password.trim()) {
-        setError("Email dan kata sandi wajib diisi.")
+      if (!username.trim() || !password.trim()) {
+        setError("Username dan kata sandi wajib diisi.")
         setIsSubmitting(false)
         return
       }
 
-      await login(email, password)
+      const user = await login(username, password)
       router.replace(redirectTo)
     } catch (error: any) {
-      if (error?.response?.status === 401) {
-        setError("Email atau kata sandi salah.")
-      } else {
-        setError("Gagal terhubung ke server.")
-      }
+      if (error?.response?.status === 401) setError("Username atau kata sandi salah.")
+      else setError("Gagal terhubung ke server.")
     } finally {
       setIsSubmitting(false)
     }
@@ -56,7 +49,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-white">
       <Navigation />
-
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
@@ -79,54 +71,35 @@ export default function LoginPage() {
 
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 font-sans">
-                    Alamat Email
-                  </Label>
+                <div>
+                  <Label htmlFor="username">Username</Label>
                   <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none relative block w-full px-3 py-3 border border-gray-300 rounded-lg sm:text-sm font-sans"
-                    placeholder="Masukkan email Anda"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-gray-700 font-sans">
-                    Kata Sandi
-                  </Label>
+                <div>
+                  <Label htmlFor="password">Kata Sandi</Label>
                   <div className="relative">
                     <Input
                       id="password"
-                      name="password"
                       type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="appearance-none relative block w-full px-3 py-3 pr-10 border border-gray-300 rounded-lg sm:text-sm font-sans"
-                      placeholder="Masukkan kata sandi Anda"
+                      required
                     />
                     <button
                       type="button"
                       className="absolute inset-y-0 right-0 pr-3 flex items-center"
                       onClick={() => setShowPassword(!showPassword)}
                     >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5 text-gray-400" />
-                      ) : (
-                        <Eye className="h-5 w-5 text-gray-400" />
-                      )}
+                      {showPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
                     </button>
                   </div>
                 </div>
-
-                {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
@@ -139,14 +112,12 @@ export default function LoginPage() {
                       Ingat saya
                     </Label>
                   </div>
-
-                  <Link
-                    href="/forgot-password"
-                    className="text-sm text-cyan-600 hover:text-cyan-700 font-sans font-medium"
-                  >
+                  <Link href="/forgot-password" className="text-sm text-cyan-600 hover:text-cyan-700 font-sans font-medium">
                     Lupa kata sandi?
                   </Link>
                 </div>
+
+                {error && <p className="text-red-600 text-sm">{error}</p>}
 
                 <Button
                   type="submit"
@@ -158,10 +129,7 @@ export default function LoginPage() {
                 </Button>
 
                 <div className="text-center text-sm text-gray-600 font-sans">
-                  Belum punya akun?{" "}
-                  <Link href="/register" className="text-cyan-600 hover:text-cyan-700 font-medium">
-                    Daftar
-                  </Link>
+                  Belum punya akun? <Link href="/register" className="text-cyan-600 hover:text-cyan-700 font-medium">Daftar</Link>
                 </div>
               </form>
             </CardContent>

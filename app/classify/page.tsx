@@ -478,7 +478,7 @@ export default function WasteDetectionPage() {
               Deteksi <span className="text-cyan-600">Sampah</span>
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto font-sans">
-              Unggah gambar atau ambil foto, lalu backend AI akan melakukan klasifikasi.
+              Unggah gambar atau ambil foto, lalu AI akan melakukan klasifikasi.
             </p>
           </div>
         </div>
@@ -672,7 +672,7 @@ export default function WasteDetectionPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-xl font-serif font-bold text-gray-900">
-                      Hasil Deteksi Backend AI
+                      Hasil Deteksi  AI
                     </CardTitle>
                     <Badge className="bg-green-100 text-green-800">
                       Berhasil
@@ -746,17 +746,6 @@ export default function WasteDetectionPage() {
                     </div>
                   </div>
 
-                  {rawBackendResponse ? (
-                    <div className="space-y-2">
-                      <h3 className="font-serif font-bold text-gray-900">
-                        Raw Response Backend
-                      </h3>
-                      <pre className="max-h-[320px] overflow-auto rounded-lg bg-gray-900 p-4 text-xs text-green-300">
-                        {rawBackendResponse}
-                      </pre>
-                    </div>
-                  ) : null}
-
                   <Button
                     onClick={() => {
                       if (detectResult) {
@@ -785,7 +774,7 @@ export default function WasteDetectionPage() {
                     Pilih gambar untuk memulai deteksi sampah
                   </p>
                   <p className="text-gray-400 text-sm">
-                    Backend AI akan memproses gambar Anda
+                    AI akan memproses gambar Anda
                   </p>
                 </CardContent>
               </Card>
