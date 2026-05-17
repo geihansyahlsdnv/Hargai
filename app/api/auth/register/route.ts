@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const BACKEND_REGISTER_URL = "http://34.101.46.140:8000/auth/register"
+const BACKEND_REGISTER_URL =
+  process.env.HARGAI_BACKEND_URL
+    ? `${process.env.HARGAI_BACKEND_URL}/auth/register`
+    : "https://hargai.site/auth/register"
 
 export async function POST(req: NextRequest) {
   try {

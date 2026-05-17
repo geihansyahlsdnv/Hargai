@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const BACKEND_ME_URL = "http://34.101.46.140:8000/users/me"
+const BACKEND_ME_URL =
+  process.env.HARGAI_BACKEND_URL
+    ? `${process.env.HARGAI_BACKEND_URL}/auth/me`
+    : "https://hargai.site/auth/me"
 
 export async function GET(req: NextRequest) {
   try {

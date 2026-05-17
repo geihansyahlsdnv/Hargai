@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const BACKEND_BASE_URL =
-  process.env.HARGAI_BACKEND_URL || "http://hargai.site/api/v1"
+  process.env.HARGAI_BACKEND_URL || "https://hargai.site"
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,9 +18,7 @@ export async function GET(req: NextRequest) {
 
     return new NextResponse(text, {
       status: response.status,
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
     })
   } catch (error: any) {
     return NextResponse.json(
