@@ -9,6 +9,7 @@ export async function login(username: string, password: string) {
   if (!res.ok) throw res
   const data = await res.json()
   localStorage.setItem("access_token", data.access_token)
+  setAuthToken(data.access_token)
 
   const meRes = await fetch("/api/users/me", {
     headers: { Authorization: `Bearer ${data.access_token}` },
