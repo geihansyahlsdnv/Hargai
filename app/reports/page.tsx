@@ -26,153 +26,148 @@ import {
 } from "recharts"
 import { BarChart3, PieChart as PieChartIcon, CalendarRange } from "lucide-react"
 
-type DetectionItem = {
+type CategoryEntry = {
   label: string
-  confidence: number
-  bbox: {
-    x1: number
-    y1: number
-    x2: number
-    y2: number
-  }
+  count: number
 }
 
-type AuditHistoryItem = {
-  audit_id: number | string
-  image_url: string
-  preview_image?: string
-  detections: DetectionItem[]
-  top_label: string
-  top_prediction?: string
-  created_at: string
+type DailyEntry = {
+  date: string
+  count: number
 }
+
+type ReportsSummary = {
+  total_audits: number
+  total_objects: number
+  average_confidence: number
+  category_distribution: CategoryEntry[]
+  daily_trend: DailyEntry[]
+}
+
+type DataSource = "backend" | "local" | "none"
 
 const pieColors = ["#10b981", "#06b6d4", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b"]
 
-function normalizeHistoryItem(item: any): AuditHistoryItem {
-  const detections = Array.isArray(item?.detections)
-    ? item.detections.map((det: any) => ({
-        label: String(det?.label ?? det?.class_name ?? det?.name ?? "Tidak diketahui"),
-        confidence: Number(det?.confidence ?? det?.score ?? det?.conf ?? 0),
-        bbox: {
-          x1: Number(det?.bbox?.x1 ?? det?.x1 ?? 0),
-          y1: Number(det?.bbox?.y1 ?? det?.y1 ?? 0),
-          x2: Number(det?.bbox?.x2 ?? det?.x2 ?? 0),
-          y2: Number(det?.bbox?.y2 ?? det?.y2 ?? 0),
-        },
-      }))
-    : []
+function deriveFromLocalStorage(): ReportsSummary | null {
+  try {
+    const raw = localStorage.getItem("saved_audit_history")
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed) || parsed.length === 0) return null
 
-  const topLabel = String(
-    item?.top_label ??
-      item?.top_prediction ??
-      item?.prediction ??
-      detections[0]?.label ??
-      "Tidak diketahui"
-  )
+    const labelTotals: Record<string, number> = {}
+    const dateTotals: Record<string, number> = {}
+    let totalObjects = 0
 
-  return {
-    audit_id: item?.audit_id ?? item?.id ?? `local-${Date.now()}`,
-    image_url: String(item?.image_url ?? item?.imageUrl ?? ""),
-    preview_image: String(item?.preview_image ?? item?.previewImage ?? ""),
-    detections,
-    top_label: topLabel,
-    top_prediction: topLabel,
-    created_at: String(item?.created_at ?? item?.createdAt ?? new Date().toISOString()),
+    for (const item of parsed) {
+      const label = String(
+        item?.top_label ?? item?.top_prediction ?? item?.label ?? "Tidak diketahui"
+      )
+      labelTotals[label] = (labelTotals[label] || 0) + 1
+
+      const detections = Array.isArray(item?.detections) ? item.detections : []
+      totalObjects += detections.length
+
+      const date = new Date(item?.created_at ?? item?.createdAt ?? "")
+      if (!Number.isNaN(date.getTime())) {
+        const key = date.toISOString().slice(0, 10)
+        dateTotals[key] = (dateTotals[key] || 0) + 1
+      }
+    }
+
+    const category_distribution = Object.entries(labelTotals).map(([label, count]) => ({
+      label,
+      count,
+    }))
+
+    const daily_trend = Object.entries(dateTotals)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, count]) => ({ date, count }))
+
+    return {
+      total_audits: parsed.length,
+      total_objects: totalObjects,
+      average_confidence: 0,
+      category_distribution,
+      daily_trend,
+    }
+  } catch {
+    return null
   }
 }
 
 export default function ReportsAnalyticsPage() {
-  const [historyData, setHistoryData] = useState<AuditHistoryItem[]>([])
+  const [summary, setSummary] = useState<ReportsSummary | null>(null)
+  const [dataSource, setDataSource] = useState<DataSource>("none")
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const loadHistory = () => {
+    const load = async () => {
       try {
-        const raw = localStorage.getItem("saved_audit_history")
-        const parsed = raw ? JSON.parse(raw) : []
+        const token = localStorage.getItem("access_token")
 
-        const normalized = Array.isArray(parsed)
-          ? parsed.map((item) => normalizeHistoryItem(item))
-          : []
+        const res = await fetch("/api/reports/summary", {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        })
 
-        setHistoryData(normalized)
-      } catch (error) {
-        console.error("Gagal membaca data laporan:", error)
-        setHistoryData([])
-      } finally {
-        setLoading(false)
+        if (res.ok) {
+          const data: ReportsSummary = await res.json()
+          setSummary(data)
+          setDataSource("backend")
+          return
+        }
+      } catch {
+        // backend unreachable — fall through to local
+      }
+
+      const local = deriveFromLocalStorage()
+      if (local) {
+        setSummary(local)
+        setDataSource("local")
+      } else {
+        setDataSource("none")
       }
     }
 
-    loadHistory()
+    load().finally(() => setLoading(false))
   }, [])
 
   const distributionData = useMemo(() => {
-    const totals: Record<string, number> = {}
-
-    historyData.forEach((item) => {
-      const label = item.top_label || "Tidak diketahui"
-      totals[label] = (totals[label] || 0) + 1
-    })
-
-    return Object.entries(totals).map(([name, value]) => ({
-      name,
-      value,
+    if (!summary) return []
+    return summary.category_distribution.map((entry) => ({
+      name: entry.label,
+      value: entry.count,
     }))
-  }, [historyData])
+  }, [summary])
 
   const trendData = useMemo(() => {
-    const grouped: Record<string, number> = {}
-
-    historyData.forEach((item) => {
-      const date = new Date(item.created_at)
-
-      if (Number.isNaN(date.getTime())) return
-
-      const key = date.toISOString().slice(0, 10)
-      grouped[key] = (grouped[key] || 0) + 1
-    })
-
-    return Object.entries(grouped)
-      .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
-      .map(([date, total]) => ({
-        date,
-        label: new Date(date).toLocaleDateString("id-ID", {
-          day: "2-digit",
-          month: "short",
-        }),
-        total,
-      }))
-  }, [historyData])
+    if (!summary) return []
+    return summary.daily_trend.map((entry) => ({
+      date: entry.date,
+      label: new Date(entry.date).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+      }),
+      total: entry.count,
+    }))
+  }, [summary])
 
   const dominantCategory = useMemo(() => {
     if (!distributionData.length) return "-"
     return [...distributionData].sort((a, b) => b.value - a.value)[0].name
   }, [distributionData])
 
-  const totalObjects = useMemo(() => {
-    return historyData.reduce((sum, item) => sum + item.detections.length, 0)
-  }, [historyData])
-
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
         <Navigation />
-
         <section className="bg-gradient-to-br from-gray-50 to-white py-16 border-b border-gray-100">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="text-center">
-              <h1 className="text-4xl md:text-5xl font-serif font-black text-gray-900 mb-6">
-                Laporan & <span className="text-cyan-600">Analitik</span>
-              </h1>
-              <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                Memuat data laporan dari riwayat lokal.
-              </p>
-            </div>
+          <div className="max-w-7xl mx-auto px-4 text-center">
+            <h1 className="text-4xl md:text-5xl font-serif font-black text-gray-900 mb-6">
+              Laporan & <span className="text-cyan-600">Analitik</span>
+            </h1>
           </div>
         </section>
-
         <div className="max-w-7xl mx-auto px-4 py-12">
           <Card className="border-0 shadow-sm">
             <CardContent className="p-6">
@@ -189,26 +184,28 @@ export default function ReportsAnalyticsPage() {
       <Navigation />
 
       <section className="bg-gradient-to-br from-gray-50 to-white py-16 border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-serif font-black text-gray-900 mb-6">
-              Laporan & <span className="text-cyan-600">Analitik</span>
-            </h1>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Analisis audit berdasarkan riwayat deteksi yang tersimpan.
-            </p>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <h1 className="text-4xl md:text-5xl font-serif font-black text-gray-900 mb-6">
+            Laporan & <span className="text-cyan-600">Analitik</span>
+          </h1>
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+            {dataSource === "backend"
+              ? "Data diambil langsung dari database."
+              : dataSource === "local"
+              ? "Data dari riwayat lokal. Backend tidak tersedia."
+              : "Belum ada data audit."}
+          </p>
         </div>
       </section>
 
       <section className="py-8">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <Card className="border-0 shadow-sm">
               <CardContent className="p-6">
                 <p className="text-sm text-slate-500 mb-1">Total Audit</p>
                 <h3 className="text-3xl font-bold text-slate-900">
-                  {historyData.length}
+                  {summary?.total_audits ?? 0}
                 </h3>
               </CardContent>
             </Card>
@@ -217,7 +214,18 @@ export default function ReportsAnalyticsPage() {
               <CardContent className="p-6">
                 <p className="text-sm text-slate-500 mb-1">Total Objek</p>
                 <h3 className="text-3xl font-bold text-slate-900">
-                  {totalObjects}
+                  {summary?.total_objects ?? 0}
+                </h3>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-sm">
+              <CardContent className="p-6">
+                <p className="text-sm text-slate-500 mb-1">Rata-rata Confidence</p>
+                <h3 className="text-3xl font-bold text-slate-900">
+                  {summary && summary.average_confidence > 0
+                    ? `${(summary.average_confidence * 100).toFixed(1)}%`
+                    : "-"}
                 </h3>
               </CardContent>
             </Card>
@@ -225,7 +233,7 @@ export default function ReportsAnalyticsPage() {
             <Card className="border-0 shadow-sm">
               <CardContent className="p-6">
                 <p className="text-sm text-slate-500 mb-1">Kategori Dominan</p>
-                <h3 className="text-3xl font-bold text-slate-900">
+                <h3 className="text-2xl font-bold text-slate-900 break-words">
                   {dominantCategory}
                 </h3>
               </CardContent>
@@ -243,7 +251,7 @@ export default function ReportsAnalyticsPage() {
         </div>
       </section>
 
-      {historyData.length === 0 ? (
+      {!summary || distributionData.length === 0 ? (
         <section className="pb-12">
           <div className="max-w-7xl mx-auto px-4">
             <Card className="border-0 shadow-sm">
@@ -262,13 +270,12 @@ export default function ReportsAnalyticsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-slate-900">
                   <BarChart3 className="w-5 h-5 text-emerald-600" />
-                  Distribusi Top Label
+                  Distribusi Kategori
                 </CardTitle>
                 <CardDescription>
-                  Berdasarkan top_label dari riwayat deteksi.
+                  Jumlah audit per kategori sampah.
                 </CardDescription>
               </CardHeader>
-
               <CardContent>
                 <div className="h-[340px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -297,10 +304,9 @@ export default function ReportsAnalyticsPage() {
                   Proporsi Kategori
                 </CardTitle>
                 <CardDescription>
-                  Distribusi kategori berdasarkan hasil audit.
+                  Distribusi proporsi tiap kategori sampah.
                 </CardDescription>
               </CardHeader>
-
               <CardContent>
                 <div className="h-[340px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -333,13 +339,12 @@ export default function ReportsAnalyticsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-slate-900">
                   <CalendarRange className="w-5 h-5 text-violet-600" />
-                  Tren Audit Berdasarkan Waktu
+                  Tren Audit 7 Hari Terakhir
                 </CardTitle>
                 <CardDescription>
-                  Jumlah audit per hari berdasarkan data riwayat.
+                  Jumlah audit per hari dari backend.
                 </CardDescription>
               </CardHeader>
-
               <CardContent>
                 <div className="h-[380px]">
                   <ResponsiveContainer width="100%" height="100%">
