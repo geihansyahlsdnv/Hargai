@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const BACKEND_DETECT_URL =
-  process.env.HARGAI_DETECT_URL || "http://hargai.site/api/classify"
+  process.env.HARGAI_DETECT_URL ||
+  (process.env.HARGAI_BACKEND_URL
+    ? `${process.env.HARGAI_BACKEND_URL}/detect`
+    : "https://hargai.site/detect")
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = req.headers.get("authorization")
     const incoming = await req.formData()
     const file = incoming.get("file")
 
@@ -20,6 +24,9 @@ export async function POST(req: NextRequest) {
 
     const response = await fetch(BACKEND_DETECT_URL, {
       method: "POST",
+      headers: {
+        Authorization: auth || "",
+      },
       body: formData,
     })
 
@@ -28,9 +35,7 @@ export async function POST(req: NextRequest) {
 
     return new NextResponse(text, {
       status: response.status,
-      headers: {
-        "Content-Type": contentType,
-      },
+      headers: { "Content-Type": contentType },
     })
   } catch (error: any) {
     return NextResponse.json(

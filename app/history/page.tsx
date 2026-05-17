@@ -96,25 +96,45 @@ export default function DetectionHistoryPage() {
   const [selectedAudit, setSelectedAudit] = useState<AuditItem | null>(null)
 
   useEffect(() => {
-    const loadLocalHistory = () => {
+    const loadHistory = async () => {
       try {
-        const rawLocalHistory = localStorage.getItem("saved_audit_history")
-        const parsed = rawLocalHistory ? JSON.parse(rawLocalHistory) : []
+        // load local history first for instant render
+        const rawLocal = localStorage.getItem("saved_audit_history")
+        const localParsed = rawLocal ? JSON.parse(rawLocal) : []
+        const localHistory: AuditItem[] = Array.isArray(localParsed)
+          ? localParsed.map((item: any) => normalizeHistoryItem(item))
+          : []
+        setAuditHistory(localHistory)
 
-        const localHistory = Array.isArray(parsed)
-          ? parsed.map((item) => normalizeHistoryItem(item))
+        // then fetch from backend and merge
+        const token = localStorage.getItem("access_token")
+        if (!token) return
+
+        const res = await fetch("/api/history", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+
+        if (!res.ok) return
+
+        const data = await res.json()
+        const backendItems: AuditItem[] = Array.isArray(data)
+          ? data.map((item: any) => normalizeHistoryItem(item))
           : []
 
-        setAuditHistory(localHistory)
+        // merge: backend is source of truth, keep local-only items
+        const backendIds = new Set(backendItems.map((i) => String(i.audit_id)))
+        const localOnly = localHistory.filter(
+          (i) => String(i.audit_id).startsWith("local-") || !backendIds.has(String(i.audit_id))
+        )
+        setAuditHistory([...backendItems, ...localOnly])
       } catch (error) {
-        console.error("Gagal membaca riwayat lokal:", error)
-        setAuditHistory([])
+        console.error("Gagal memuat riwayat:", error)
       } finally {
         setLoading(false)
       }
     }
 
-    loadLocalHistory()
+    loadHistory()
   }, [])
 
   const categories = useMemo(() => {

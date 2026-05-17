@@ -1,12 +1,26 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
-import { Menu, X } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Menu, X, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { logout, isAuthenticated } from "@/lib/auth"
 
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(false)
+  const router = useRouter()
+
+  useEffect(() => {
+    setLoggedIn(isAuthenticated())
+  }, [])
+
+  const handleLogout = () => {
+    logout()
+    setLoggedIn(false)
+    router.push("/login")
+  }
 
   const navLinks = [
     { href: "/profile", label: "Profile" },
@@ -21,10 +35,7 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Link
-              href="/"
-              className="text-2xl font-serif font-black text-cyan-600"
-            >
+            <Link href="/" className="text-2xl font-serif font-black text-cyan-600">
               HargAI
             </Link>
 
@@ -39,7 +50,6 @@ export default function Navigation() {
                     {item.label}
                   </Link>
                 ))}
-
                 <Link
                   href="/about"
                   className="text-gray-600 hover:text-cyan-600 px-3 py-2 text-sm font-medium transition-colors"
@@ -50,12 +60,23 @@ export default function Navigation() {
             </div>
           </div>
 
-          <div className="hidden md:flex items-center">
-            <Link href="/login">
-              <Button className="bg-cyan-600 hover:bg-cyan-700 text-white">
-                Login
+          <div className="hidden md:flex items-center gap-2">
+            {loggedIn ? (
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="border-red-200 text-red-600 hover:bg-red-50"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
               </Button>
-            </Link>
+            ) : (
+              <Link href="/login">
+                <Button className="bg-cyan-600 hover:bg-cyan-700 text-white">
+                  Login
+                </Button>
+              </Link>
+            )}
           </div>
 
           <div className="md:hidden">
@@ -64,11 +85,7 @@ export default function Navigation() {
               className="text-gray-600 hover:text-cyan-600 p-2"
               aria-label="Toggle menu"
             >
-              {isMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
@@ -86,7 +103,6 @@ export default function Navigation() {
                   {item.label}
                 </Link>
               ))}
-
               <Link
                 href="/about"
                 className="block px-3 py-2 text-base font-medium text-gray-600 hover:text-cyan-600"
@@ -94,14 +110,22 @@ export default function Navigation() {
               >
                 About
               </Link>
-
-              <Link
-                href="/login"
-                className="block px-3 py-2 text-base font-medium text-cyan-600 hover:text-cyan-700"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Login
-              </Link>
+              {loggedIn ? (
+                <button
+                  onClick={() => { handleLogout(); setIsMenuOpen(false) }}
+                  className="block w-full text-left px-3 py-2 text-base font-medium text-red-600 hover:text-red-700"
+                >
+                  Logout
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  className="block px-3 py-2 text-base font-medium text-cyan-600 hover:text-cyan-700"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Login
+                </Link>
+              )}
             </div>
           </div>
         )}

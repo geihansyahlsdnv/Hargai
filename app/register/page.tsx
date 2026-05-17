@@ -14,8 +14,7 @@ import Link from "next/link"
 export default function RegisterPage() {
   const router = useRouter()
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    username: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -33,8 +32,8 @@ export default function RegisterPage() {
   }
 
   const validateForm = () => {
-    if (!formData.firstName.trim()) return "Nama depan wajib diisi."
-    if (!formData.lastName.trim()) return "Nama belakang wajib diisi."
+    if (!formData.username.trim()) return "Username wajib diisi."
+    if (formData.username.length < 3) return "Username minimal 3 karakter."
     if (!formData.email.trim()) return "Email wajib diisi."
     if (!formData.password.trim()) return "Kata sandi wajib diisi."
     if (formData.password.length < 6) return "Kata sandi minimal 6 karakter."
@@ -61,7 +60,7 @@ export default function RegisterPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: formData.firstName + " " + formData.lastName,
+          username: formData.username,
           email: formData.email,
           password: formData.password,
           role: formData.role,
@@ -108,25 +107,15 @@ export default function RegisterPage() {
 
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="firstName">Nama Depan</Label>
-                    <Input
-                      id="firstName"
-                      value={formData.firstName}
-                      onChange={(e) => handleChange("firstName", e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="lastName">Nama Belakang</Label>
-                    <Input
-                      id="lastName"
-                      value={formData.lastName}
-                      onChange={(e) => handleChange("lastName", e.target.value)}
-                      required
-                    />
-                  </div>
+                <div>
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    value={formData.username}
+                    onChange={(e) => handleChange("username", e.target.value)}
+                    placeholder="Masukkan username Anda"
+                    required
+                  />
                 </div>
 
                 <div>
