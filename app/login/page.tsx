@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Navigation from "@/components/navigation"
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card"
@@ -12,7 +12,7 @@ import { Eye, EyeOff, ArrowRight, Shield } from "lucide-react"
 import Link from "next/link"
 import { login } from "@/lib/auth"
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = useMemo(() => searchParams.get("redirect") || "/", [searchParams])
@@ -137,5 +137,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <LoginForm />
+    </Suspense>
   )
 }
