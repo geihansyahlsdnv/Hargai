@@ -13,9 +13,10 @@ import {
   Circle,
   Database,
   Tag,
+  Play,
+  Square,
 } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
-import { useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 
@@ -303,6 +304,9 @@ export default function WasteDetectionPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isPriceLoading, setIsPriceLoading] = useState(false)
   const [isCameraOpen, setIsCameraOpen] = useState(false)
+  const [isLiveDetecting, setIsLiveDetecting] = useState(false)
+  const [isLiveProcessing, setIsLiveProcessing] = useState(false)
+  const [liveDetections, setLiveDetections] = useState<BackendDetection[]>([])
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [errorMessage, setErrorMessage] = useState("")
@@ -316,6 +320,8 @@ export default function WasteDetectionPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const liveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const liveProcessingRef = useRef(false)
 
   const detections = detectResult?.detections ?? []
   const topPrediction = detectResult?.top_prediction ?? "Tidak diketahui"
@@ -362,8 +368,25 @@ export default function WasteDetectionPage() {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop())
       }
+
+      if (liveIntervalRef.current) {
+        clearInterval(liveIntervalRef.current)
+        liveIntervalRef.current = null
+      }
     }
   }, [stream])
+
+  const stopLiveDetection = () => {
+    setIsLiveDetecting(false)
+    setIsLiveProcessing(false)
+    setLiveDetections([])
+    liveProcessingRef.current = false
+
+    if (liveIntervalRef.current) {
+      clearInterval(liveIntervalRef.current)
+      liveIntervalRef.current = null
+    }
+  }
 
   const handleOpenCamera = async () => {
     setCameraError(null)
@@ -374,6 +397,7 @@ export default function WasteDetectionPage() {
     setDebugInfo("")
     setRawBackendResponse("")
     setImageNaturalSize({ width: 0, height: 0 })
+    setLiveDetections([])
 
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -393,6 +417,8 @@ export default function WasteDetectionPage() {
   }
 
   const handleCloseCamera = () => {
+    stopLiveDetection()
+
     if (stream) {
       stream.getTracks().forEach((track) => track.stop())
       setStream(null)
@@ -403,6 +429,77 @@ export default function WasteDetectionPage() {
     }
 
     setIsCameraOpen(false)
+  }
+
+  const runLiveDetection = async () => {
+    if (liveProcessingRef.current) return
+    if (!videoRef.current || !canvasRef.current) return
+
+    const video = videoRef.current
+    const canvas = canvasRef.current
+
+    if (video.videoWidth === 0 || video.videoHeight === 0) return
+
+    liveProcessingRef.current = true
+    setIsLiveProcessing(true)
+
+    try {
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+
+      const context = canvas.getContext("2d")
+      if (!context) return
+
+      context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, "image/jpeg", 0.8)
+      })
+
+      if (!blob) return
+
+      const file = new File([blob], `live-${Date.now()}.jpg`, {
+        type: "image/jpeg",
+      })
+
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const token =
+  typeof window !== "undefined" ? localStorage.getItem("access_token") : null
+
+      const { data } = await api.post("/detect?preview=true", formData, {
+        headers: token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : undefined,
+      })
+      const normalizedData = normalizeDetectResponse(data, wasteTypes)
+
+      setLiveDetections(normalizedData.detections)
+    } catch (error: any) {
+      console.error("Live detection error:", error)
+    } finally {
+      liveProcessingRef.current = false
+      setIsLiveProcessing(false)
+    }
+  }
+
+  const handleStartLiveDetection = async () => {
+    setErrorMessage("")
+    setDebugInfo("")
+    setDetectResult(null)
+    setPreviewImage(null)
+    setSelectedFile(null)
+    setLiveDetections([])
+    setIsLiveDetecting(true)
+
+    await runLiveDetection()
+
+    liveIntervalRef.current = setInterval(() => {
+      runLiveDetection()
+    }, 1500)
   }
 
   const detectWaste = async (file: File, preview: string) => {
@@ -509,6 +606,8 @@ export default function WasteDetectionPage() {
     }
 
     try {
+      stopLiveDetection()
+
       canvas.width = video.videoWidth
       canvas.height = video.videoHeight
 
@@ -559,6 +658,7 @@ export default function WasteDetectionPage() {
   }
 
   const handleReset = () => {
+    stopLiveDetection()
     setPreviewImage(null)
     setSelectedFile(null)
     setDetectResult(null)
@@ -583,7 +683,8 @@ export default function WasteDetectionPage() {
               Deteksi <span className="text-cyan-600">Sampah</span>
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto font-sans">
-              Unggah gambar atau ambil foto, lalu AI YOLOv8 akan melakukan klasifikasi sampah dan menampilkan estimasi harga.
+              Gunakan kamera atau unggah gambar untuk mendeteksi jenis sampah,
+              bounding box, confidence score, dan estimasi harga.
             </p>
           </div>
         </div>
@@ -719,9 +820,16 @@ export default function WasteDetectionPage() {
             {isCameraOpen ? (
               <Card className="border-0 shadow-2xl overflow-hidden">
                 <CardHeader className="bg-gradient-to-r from-cyan-600 to-blue-600">
-                  <CardTitle className="text-xl font-serif font-bold text-white">
-                    Kamera Live
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xl font-serif font-bold text-white">
+                      Kamera Live
+                    </CardTitle>
+                    {isLiveDetecting ? (
+                      <Badge className="bg-green-100 text-green-800">
+                        Live Detection Aktif
+                      </Badge>
+                    ) : null}
+                  </div>
                 </CardHeader>
 
                 <CardContent className="p-0">
@@ -738,6 +846,61 @@ export default function WasteDetectionPage() {
                         backgroundColor: "#000",
                       }}
                     />
+
+                    {liveDetections.map((result, index) => {
+                      const videoWidth = videoRef.current?.videoWidth || 0
+                      const videoHeight = videoRef.current?.videoHeight || 0
+
+                      const hasValidBox =
+                        result.bbox.x2 > result.bbox.x1 &&
+                        result.bbox.y2 > result.bbox.y1 &&
+                        videoWidth > 0 &&
+                        videoHeight > 0
+
+                      if (!hasValidBox) return null
+
+                      const isNormalizedBox =
+                        result.bbox.x2 <= 1 && result.bbox.y2 <= 1
+
+                      const left = isNormalizedBox
+                        ? result.bbox.x1 * 100
+                        : (result.bbox.x1 / videoWidth) * 100
+
+                      const top = isNormalizedBox
+                        ? result.bbox.y1 * 100
+                        : (result.bbox.y1 / videoHeight) * 100
+
+                      const width = isNormalizedBox
+                        ? (result.bbox.x2 - result.bbox.x1) * 100
+                        : ((result.bbox.x2 - result.bbox.x1) / videoWidth) * 100
+
+                      const height = isNormalizedBox
+                        ? (result.bbox.y2 - result.bbox.y1) * 100
+                        : ((result.bbox.y2 - result.bbox.y1) / videoHeight) * 100
+
+                      return (
+                        <div
+                          key={`live-bbox-${result.label}-${index}`}
+                          className="absolute border-2 border-cyan-400 rounded-md pointer-events-none"
+                          style={{
+                            left: `${left}%`,
+                            top: `${top}%`,
+                            width: `${width}%`,
+                            height: `${height}%`,
+                          }}
+                        >
+                          <div className="absolute -top-8 left-0 bg-cyan-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                            {result.label} • {(result.confidence * 100).toFixed(1)}%
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {isLiveProcessing ? (
+                      <div className="absolute top-3 right-3 bg-black/70 text-white text-xs px-3 py-2 rounded-full">
+                        Memproses frame...
+                      </div>
+                    ) : null}
                   </div>
 
                   {cameraError ? (
@@ -746,13 +909,33 @@ export default function WasteDetectionPage() {
                     </div>
                   ) : null}
 
-                  <div className="p-6 bg-gradient-to-r from-cyan-50 to-blue-50">
+                  <div className="p-6 bg-gradient-to-r from-cyan-50 to-blue-50 space-y-3">
                     <Button
                       onClick={handleCapture}
                       className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white py-8 text-xl font-bold"
                     >
                       <Circle className="h-8 w-8 mr-3" fill="currentColor" />
                       Ambil Foto Sekarang
+                    </Button>
+
+                    <Button
+                      onClick={
+                        isLiveDetecting ? stopLiveDetection : handleStartLiveDetection
+                      }
+                      variant="outline"
+                      className="w-full py-6 text-lg font-bold"
+                    >
+                      {isLiveDetecting ? (
+                        <>
+                          <Square className="h-5 w-5 mr-2" />
+                          Stop Live Detection
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-5 w-5 mr-2" />
+                          Mulai Live Detection
+                        </>
+                      )}
                     </Button>
                   </div>
                 </CardContent>
@@ -792,8 +975,7 @@ export default function WasteDetectionPage() {
                         if (!hasValidBox) return null
 
                         const isNormalizedBox =
-                          result.bbox.x2 <= 1 &&
-                          result.bbox.y2 <= 1
+                          result.bbox.x2 <= 1 && result.bbox.y2 <= 1
 
                         const left = isNormalizedBox
                           ? result.bbox.x1 * 100
@@ -805,11 +987,15 @@ export default function WasteDetectionPage() {
 
                         const width = isNormalizedBox
                           ? (result.bbox.x2 - result.bbox.x1) * 100
-                          : ((result.bbox.x2 - result.bbox.x1) / imageNaturalSize.width) * 100
+                          : ((result.bbox.x2 - result.bbox.x1) /
+                              imageNaturalSize.width) *
+                            100
 
                         const height = isNormalizedBox
                           ? (result.bbox.y2 - result.bbox.y1) * 100
-                          : ((result.bbox.y2 - result.bbox.y1) / imageNaturalSize.height) * 100
+                          : ((result.bbox.y2 - result.bbox.y1) /
+                              imageNaturalSize.height) *
+                            100
 
                         return (
                           <div
@@ -976,7 +1162,8 @@ export default function WasteDetectionPage() {
                     Pilih gambar untuk memulai deteksi sampah
                   </p>
                   <p className="text-gray-400 text-sm">
-                    AI akan memproses gambar, menampilkan bounding box, label, confidence, dan harga sampah.
+                    AI akan memproses gambar, menampilkan bounding box, label,
+                    confidence, dan harga sampah.
                   </p>
                 </CardContent>
               </Card>
