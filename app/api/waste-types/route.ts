@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 
 const BACKEND_WASTE_TYPES_URL =
   process.env.HARGAI_WASTE_TYPES_URL ||
-  (process.env.HARGAI_BACKEND_URL
-    ? `${process.env.HARGAI_BACKEND_URL}/waste-types`
+  (process.env.BACKEND_BASE_URL
+    ? `${process.env.BACKEND_BASE_URL}/waste-types`
     : "https://hargai.site/waste-types")
 
 export async function GET(req: NextRequest) {

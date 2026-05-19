@@ -630,6 +630,46 @@ export default function AuditPage() {
           )}
         </div>
       </section>
+
+{/* Footer */}
+      <footer className="bg-gray-900 text-white py-12 border-t border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+            <div className="md:col-span-2">
+              <h3 className="text-2xl font-serif font-black text-cyan-400 mb-3">
+                HargAI
+              </h3>
+              <p className="text-gray-400 font-sans text-sm leading-relaxed max-w-2xl">
+                HargAI adalah platform klasifikasi sampah berbasis AI yang membantu pengguna mengenali jenis sampah dan melihat estimasi harga secara cepat.
+              </p>
+            </div>
+
+            <div className="md:text-right">
+              <h4 className="text-lg font-serif font-bold mb-4">
+                Mulai Menggunakan
+              </h4>
+              <p className="text-gray-400 font-sans text-sm mb-4">
+                Daftar akun untuk mengakses fitur.
+              </p>
+              <Link href="/register">
+                <Button className="bg-cyan-600 hover:bg-cyan-700 text-white font-sans font-bold">
+                  Sign Up / Register
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-gray-400 font-sans text-sm text-center md:text-left">
+              © 2026 HargAI. All rights reserved.
+            </p>
+            <p className="text-gray-500 font-sans text-xs text-center md:text-right">
+              Powered by HargAI Waste Classification System
+            </p>
+          </div>
+        </div>
+      </footer>
+
     </div>
   )
 }
