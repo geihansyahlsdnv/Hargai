@@ -5,8 +5,26 @@ import Navigation from "@/components/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Image as ImageIcon, Save, CheckCircle, History } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import {
+  Image as ImageIcon,
+  History,
+  RotateCcw,
+  Search,
+  ArrowUpDown,
+  CheckCircle,
+  Tag,
+} from "lucide-react"
 import Link from "next/link"
+
+type WastePrice = {
+  id: string
+  name: string
+  category: string
+  unit: string
+  current_price: number | string | null
+  currency: string
+}
 
 type DetectionItem = {
   label: string
@@ -17,6 +35,7 @@ type DetectionItem = {
     x2: number
     y2: number
   }
+  price?: WastePrice | null
 }
 
 type DetectWasteResponse = {
@@ -27,59 +46,204 @@ type DetectWasteResponse = {
   top_prediction: string
   top_label?: string
   created_at: string
+  raw_response?: unknown
+}
+
+const normalizeConfidence = (value: unknown): number => {
+  const numberValue = Number(value)
+  if (Number.isNaN(numberValue)) return 0
+  if (numberValue > 1) return numberValue / 100
+  return numberValue
+}
+
+const normalizeBBox = (item: any) => {
+  const bbox =
+    item?.bbox ||
+    item?.box ||
+    item?.bounding_box ||
+    item?.boundingBox ||
+    {}
+
+  return {
+    x1: Number(bbox?.x1 ?? bbox?.xmin ?? bbox?.left ?? item?.x1 ?? item?.xmin ?? 0),
+    y1: Number(bbox?.y1 ?? bbox?.ymin ?? bbox?.top ?? item?.y1 ?? item?.ymin ?? 0),
+    x2: Number(bbox?.x2 ?? bbox?.xmax ?? bbox?.right ?? item?.x2 ?? item?.xmax ?? 0),
+    y2: Number(bbox?.y2 ?? bbox?.ymax ?? bbox?.bottom ?? item?.y2 ?? item?.ymax ?? 0),
+  }
+}
+
+const getRawDetections = (result: any): any[] => {
+  if (!result) return []
+
+  const possibleArrays = [
+    result.detections,
+    result.results,
+    result.predictions,
+    result.objects,
+    result.items,
+    result.data?.detections,
+    result.data?.results,
+    result.data?.predictions,
+    result.output?.detections,
+    result.output?.results,
+    result.output?.predictions,
+  ]
+
+  const foundArray = possibleArrays.find((value) => Array.isArray(value))
+  return Array.isArray(foundArray) ? foundArray : []
+}
+
+const getLabelFromItem = (item: any, index: number): string => {
+  return String(
+    item?.label ??
+      item?.class ??
+      item?.class_name ??
+      item?.className ??
+      item?.name ??
+      item?.category ??
+      item?.prediction ??
+      item?.predicted_class ??
+      item?.predicted_label ??
+      item?.cls ??
+      item?.object ??
+      item?.type ??
+      `Objek ${index + 1}`
+  )
+}
+
+const getConfidenceFromItem = (item: any): number => {
+  return normalizeConfidence(
+    item?.confidence ??
+      item?.score ??
+      item?.conf ??
+      item?.probability ??
+      item?.prob ??
+      item?.accuracy ??
+      0
+  )
+}
+
+const getDetections = (result: any): DetectionItem[] => {
+  if (!result) return []
+
+  const rawDetections = getRawDetections(result)
+
+  if (rawDetections.length > 0) {
+    return rawDetections.map((item: any, index: number) => ({
+      label: getLabelFromItem(item, index),
+      confidence: getConfidenceFromItem(item),
+      bbox: normalizeBBox(item),
+      price: item?.price ?? null,
+    }))
+  }
+
+  const singleLabel =
+    result.top_prediction ??
+    result.top_label ??
+    result.prediction ??
+    result.label ??
+    result.class ??
+    result.class_name ??
+    result.predicted_class ??
+    result.predicted_label ??
+    result.result ??
+    result.category ??
+    result.data?.top_prediction ??
+    result.data?.top_label ??
+    result.data?.prediction ??
+    result.data?.label ??
+    result.output?.top_prediction ??
+    result.output?.top_label ??
+    result.output?.prediction ??
+    result.output?.label
+
+  if (!singleLabel) return []
+
+  return [
+    {
+      label: String(singleLabel),
+      confidence: normalizeConfidence(
+        result.confidence ??
+          result.score ??
+          result.conf ??
+          result.probability ??
+          result.data?.confidence ??
+          result.data?.score ??
+          result.output?.confidence ??
+          result.output?.score ??
+          0
+      ),
+      bbox: { x1: 0, y1: 0, x2: 0, y2: 0 },
+      price: null,
+    },
+  ]
+}
+
+const getImageUrl = (result: any): string => {
+  return String(
+    result?.image_url ??
+      result?.imageUrl ??
+      result?.image ??
+      result?.url ??
+      result?.file_url ??
+      result?.fileUrl ??
+      result?.data?.image_url ??
+      result?.data?.imageUrl ??
+      result?.data?.image ??
+      result?.output?.image_url ??
+      ""
+  )
+}
+
+const formatCurrency = (
+  value: number | string | null | undefined,
+  currency = "IDR"
+) => {
+  const numberValue = Number(value)
+
+  if (value === null || value === undefined || Number.isNaN(numberValue)) {
+    return "Harga belum tersedia"
+  }
+
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(numberValue)
 }
 
 function normalizeAuditData(rawData: unknown): DetectWasteResponse | null {
-  if (!rawData || typeof rawData !== "object") {
-    return null
-  }
+  if (!rawData || typeof rawData !== "object") return null
 
   const data = rawData as Record<string, any>
-
-  const rawDetections = Array.isArray(data.detections)
-    ? data.detections
-    : Array.isArray(data.results)
-      ? data.results
-      : Array.isArray(data.predictions)
-        ? data.predictions
-        : []
-
-  const detections: DetectionItem[] = rawDetections.map((item: any) => ({
-    label: String(
-      item?.label ??
-        item?.class ??
-        item?.class_name ??
-        item?.name ??
-        item?.category ??
-        "Tidak diketahui"
-    ),
-    confidence: Number(
-      item?.confidence ??
-        item?.score ??
-        item?.conf ??
-        item?.probability ??
-        0
-    ),
-    bbox: {
-      x1: Number(item?.bbox?.x1 ?? item?.bbox?.xmin ?? item?.x1 ?? item?.xmin ?? 0),
-      y1: Number(item?.bbox?.y1 ?? item?.bbox?.ymin ?? item?.y1 ?? item?.ymin ?? 0),
-      x2: Number(item?.bbox?.x2 ?? item?.bbox?.xmax ?? item?.x2 ?? item?.xmax ?? 0),
-      y2: Number(item?.bbox?.y2 ?? item?.bbox?.ymax ?? item?.y2 ?? item?.ymax ?? 0),
-    },
-  }))
+  const detections = getDetections(data)
 
   const topPrediction = String(
     data.top_prediction ??
       data.top_label ??
       data.prediction ??
       data.label ??
+      data.class ??
+      data.class_name ??
+      data.predicted_class ??
+      data.predicted_label ??
+      data.result ??
+      data.category ??
+      data.data?.top_prediction ??
+      data.data?.top_label ??
+      data.data?.prediction ??
+      data.data?.label ??
+      data.output?.top_prediction ??
+      data.output?.top_label ??
+      data.output?.prediction ??
+      data.output?.label ??
       detections[0]?.label ??
       "Tidak diketahui"
   )
 
   return {
-    audit_id: data.audit_id ?? data.auditId ?? data.id ?? `local-${Date.now()}`,
-    image_url: String(data.image_url ?? data.imageUrl ?? data.image ?? data.url ?? ""),
+    audit_id: data.audit_id ?? data.auditId ?? data.id ?? "-",
+    image_url: getImageUrl(data),
     preview_image: String(data.preview_image ?? data.previewImage ?? ""),
     detections,
     top_prediction: topPrediction,
@@ -88,30 +252,20 @@ function normalizeAuditData(rawData: unknown): DetectWasteResponse | null {
       data.created_at ??
         data.createdAt ??
         data.timestamp ??
+        data.data?.created_at ??
         new Date().toISOString()
     ),
-  }
-}
-
-function getSavedHistory(): DetectWasteResponse[] {
-  if (typeof window === "undefined") return []
-
-  try {
-    const raw = localStorage.getItem("saved_audit_history")
-    if (!raw) return []
-
-    const parsed = JSON.parse(raw)
-
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
+    raw_response: data.raw_response ?? data,
   }
 }
 
 export default function AuditPage() {
   const [latestAudit, setLatestAudit] = useState<DetectWasteResponse | null>(null)
   const [mounted, setMounted] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 })
+  const [searchTerm, setSearchTerm] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("all")
+  const [sortBy, setSortBy] = useState<"latest" | "confidence" | "label">("latest")
 
   useEffect(() => {
     setMounted(true)
@@ -121,9 +275,7 @@ export default function AuditPage() {
 
     try {
       const parsed = JSON.parse(raw)
-      const normalized = normalizeAuditData(parsed)
-
-      setLatestAudit(normalized)
+      setLatestAudit(normalizeAuditData(parsed))
     } catch (error) {
       console.error("Gagal membaca hasil deteksi terbaru:", error)
       setLatestAudit(null)
@@ -135,74 +287,55 @@ export default function AuditPage() {
 
   const avgConfidence = useMemo(() => {
     if (detections.length === 0) return 0
-
-    const totalConfidence = detections.reduce((sum, item) => {
-      return sum + Number(item.confidence || 0)
-    }, 0)
-
-    return totalConfidence / detections.length
+    return detections.reduce((sum, item) => sum + item.confidence, 0) / detections.length
   }, [detections])
+
+  const detectedPrices = useMemo(() => {
+    return detections
+      .map((item) => item.price)
+      .filter((item): item is WastePrice => Boolean(item))
+  }, [detections])
+
+  const totalEstimatedPrice = useMemo(() => {
+    return detectedPrices.reduce((total, item) => {
+      const price = Number(item.current_price)
+      return total + (Number.isNaN(price) ? 0 : price)
+    }, 0)
+  }, [detectedPrices])
+
+  const categories = useMemo(() => {
+    return Array.from(new Set(detections.map((item) => item.label)))
+  }, [detections])
+
+  const filteredDetections = useMemo(() => {
+    let result = detections.filter((item) => {
+      const matchesSearch = item.label.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesCategory = categoryFilter === "all" || item.label === categoryFilter
+      return matchesSearch && matchesCategory
+    })
+
+    if (sortBy === "confidence") {
+      result = [...result].sort((a, b) => b.confidence - a.confidence)
+    }
+
+    if (sortBy === "label") {
+      result = [...result].sort((a, b) => a.label.localeCompare(b.label))
+    }
+
+    return result
+  }, [detections, searchTerm, categoryFilter, sortBy])
 
   const formattedCreatedAt = useMemo(() => {
     if (!mounted || !latestAudit?.created_at) return "-"
 
     const date = new Date(latestAudit.created_at)
-
-    if (Number.isNaN(date.getTime())) {
-      return "-"
-    }
+    if (Number.isNaN(date.getTime())) return "-"
 
     return date.toLocaleString("id-ID")
   }, [mounted, latestAudit?.created_at])
 
-  const handleSaveToHistory = () => {
-    if (!latestAudit) return
-
-    const history = getSavedHistory()
-
-    const itemToSave: DetectWasteResponse = {
-      ...latestAudit,
-      audit_id:
-        latestAudit.audit_id && latestAudit.audit_id !== "-"
-          ? latestAudit.audit_id
-          : `local-${Date.now()}`,
-      top_label: latestAudit.top_prediction,
-      created_at: latestAudit.created_at || new Date().toISOString(),
-      image_url: latestAudit.image_url || "",
-      preview_image: "",
-    }
-
-    const alreadyExists = history.some(
-      (item) => String(item.audit_id) === String(itemToSave.audit_id)
-    )
-
-    const nextHistory = alreadyExists
-      ? history.map((item) =>
-          String(item.audit_id) === String(itemToSave.audit_id)
-            ? itemToSave
-            : item
-        )
-      : [itemToSave, ...history]
-
-    try {
-      localStorage.setItem("saved_audit_history", JSON.stringify(nextHistory))
-      setSaved(true)
-    } catch (error) {
-      console.error("Gagal menyimpan ke riwayat:", error)
-
-      const compactHistory = nextHistory.slice(0, 20).map((item) => ({
-        ...item,
-        image_url: item.image_url?.startsWith("data:") ? "" : item.image_url,
-        preview_image: "",
-      }))
-
-      localStorage.setItem("saved_audit_history", JSON.stringify(compactHistory))
-      setSaved(true)
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <Navigation />
 
       <section className="bg-gradient-to-br from-gray-50 to-white py-16 border-b">
@@ -210,8 +343,8 @@ export default function AuditPage() {
           <h1 className="text-4xl md:text-5xl font-serif font-black text-gray-900 mb-4">
             Audit <span className="text-cyan-600">Sampah</span>
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl">
-            Menampilkan hasil klasifikasi terbaru sebelum disimpan ke riwayat.
+          <p className="text-lg text-gray-600 max-w-3xl">
+            Pusat pengelolaan hasil deteksi sampah yang otomatis tersimpan dari proses klasifikasi AI.
           </p>
         </div>
       </section>
@@ -219,165 +352,279 @@ export default function AuditPage() {
       <section className="py-10">
         <div className="max-w-7xl mx-auto px-4">
           {latestAudit ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Card className="border-0 shadow-xl overflow-hidden">
-                <CardHeader className="border-b bg-gray-50/60">
-                  <CardTitle className="text-xl font-serif font-bold text-gray-900">
-                    Gambar Hasil Audit
-                  </CardTitle>
-                </CardHeader>
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <Card className="border-slate-200 bg-white shadow-sm overflow-hidden">
+                  <CardHeader className="border-b border-slate-200 bg-white">
+                    <CardTitle className="text-xl font-serif font-bold text-slate-950">
+                      Preview Hasil Deteksi
+                    </CardTitle>
+                  </CardHeader>
 
-                <CardContent className="p-0">
-                  <div className="bg-gray-100">
-                    {displayImage ? (
-                      <img
-                        src={displayImage}
-                        alt="Hasil deteksi"
-                        className="w-full h-[420px] object-contain"
-                      />
-                    ) : (
-                      <div className="w-full h-[420px] flex items-center justify-center text-gray-400">
-                        Tidak ada gambar
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                  <CardContent className="p-4">
+                    <div className="relative overflow-hidden rounded-2xl bg-slate-950">
+                      {displayImage ? (
+                        <img
+                          src={displayImage}
+                          alt="Hasil deteksi"
+                          className="h-auto w-full"
+                          onLoad={(event) => {
+                            setImageNaturalSize({
+                              width: event.currentTarget.naturalWidth,
+                              height: event.currentTarget.naturalHeight,
+                            })
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-[420px] flex items-center justify-center text-slate-400">
+                          Tidak ada gambar
+                        </div>
+                      )}
 
-              <Card className="border-0 shadow-xl">
-                <CardHeader className="border-b bg-gray-50/60">
-                  <CardTitle className="text-xl font-serif font-bold text-gray-900">
-                    Ringkasan Audit
-                  </CardTitle>
-                </CardHeader>
+                      {detections.map((result, index) => {
+                        const hasValidBox =
+                          result.bbox.x2 > result.bbox.x1 &&
+                          result.bbox.y2 > result.bbox.y1 &&
+                          imageNaturalSize.width > 0 &&
+                          imageNaturalSize.height > 0
 
-                <CardContent className="p-6 space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <Card className="border border-gray-200 bg-cyan-50">
-                      <CardContent className="pt-4">
-                        <p className="text-sm text-gray-600 mb-1">Audit ID</p>
-                        <p className="text-3xl font-serif font-bold text-cyan-600">
+                        if (!hasValidBox) return null
+
+                        const isNormalizedBox = result.bbox.x2 <= 1 && result.bbox.y2 <= 1
+
+                        const left = isNormalizedBox
+                          ? result.bbox.x1 * 100
+                          : (result.bbox.x1 / imageNaturalSize.width) * 100
+
+                        const top = isNormalizedBox
+                          ? result.bbox.y1 * 100
+                          : (result.bbox.y1 / imageNaturalSize.height) * 100
+
+                        const width = isNormalizedBox
+                          ? (result.bbox.x2 - result.bbox.x1) * 100
+                          : ((result.bbox.x2 - result.bbox.x1) / imageNaturalSize.width) * 100
+
+                        const height = isNormalizedBox
+                          ? (result.bbox.y2 - result.bbox.y1) * 100
+                          : ((result.bbox.y2 - result.bbox.y1) / imageNaturalSize.height) * 100
+
+                        return (
+                          <div
+                            key={`audit-bbox-${result.label}-${index}`}
+                            className="pointer-events-none absolute rounded-lg border-2 border-cyan-400"
+                            style={{
+                              left: `${left}%`,
+                              top: `${top}%`,
+                              width: `${width}%`,
+                              height: `${height}%`,
+                            }}
+                          >
+                            <div className="absolute -top-8 left-0 whitespace-nowrap rounded-md bg-cyan-600 px-2 py-1 text-xs font-sans font-semibold text-white shadow-sm">
+                              {result.label} • {(result.confidence * 100).toFixed(1)}%
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-slate-200 bg-white shadow-sm">
+                  <CardHeader className="border-b border-slate-200 bg-white">
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle className="text-xl font-serif font-bold text-slate-950">
+                        Hasil Klasifikasi AI
+                      </CardTitle>
+                      <Badge className="bg-green-50 text-green-700 hover:bg-green-50">
+                        <CheckCircle className="mr-1 h-3.5 w-3.5" />
+                        Tersimpan
+                      </Badge>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="p-5 space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="rounded-2xl border border-slate-200 bg-cyan-50 p-4">
+                        <p className="text-sm text-slate-500">Audit ID</p>
+                        <p className="mt-2 text-3xl font-serif font-black text-cyan-600">
                           {latestAudit.audit_id}
                         </p>
-                      </CardContent>
-                    </Card>
+                      </div>
 
-                    <Card className="border border-gray-200 bg-amber-50">
-                      <CardContent className="pt-4">
-                        <p className="text-sm text-gray-600 mb-1">
-                          Prediksi Utama
-                        </p>
-                        <p className="text-2xl font-serif font-bold text-amber-600">
+                      <div className="rounded-2xl border border-slate-200 bg-amber-50 p-4">
+                        <p className="text-sm text-slate-500">Kategori Sampah</p>
+                        <p className="mt-2 text-2xl font-serif font-black text-amber-600">
                           {latestAudit.top_prediction}
                         </p>
-                      </CardContent>
-                    </Card>
-                  </div>
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <Card className="border border-gray-200">
-                      <CardContent className="pt-4">
-                        <p className="text-sm text-gray-600 mb-1">
-                          Total Deteksi
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <p className="text-sm text-slate-500">Total Objek</p>
+                        <p className="mt-2 text-2xl font-bold text-slate-900">
                           {detections.length}
                         </p>
-                      </CardContent>
-                    </Card>
+                      </div>
 
-                    <Card className="border border-gray-200">
-                      <CardContent className="pt-4">
-                        <p className="text-sm text-gray-600 mb-1">
-                          Confidence Rata-rata
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <p className="text-sm text-slate-500">Confidence Rata-rata</p>
+                        <p className="mt-2 text-2xl font-bold text-slate-900">
                           {(avgConfidence * 100).toFixed(1)}%
                         </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h3 className="font-serif font-bold text-gray-900">
-                      Detail Deteksi
-                    </h3>
-
-                    {detections.length > 0 ? (
-                      detections.map((item, index) => (
-                        <div
-                          key={`${item.label}-${index}`}
-                          className="p-4 border rounded-xl bg-gray-50 flex items-center justify-between gap-4"
-                        >
-                          <div>
-                            <p className="font-semibold text-gray-900">
-                              {item.label}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              x1:{item.bbox.x1} y1:{item.bbox.y1} x2:
-                              {item.bbox.x2} y2:{item.bbox.y2}
-                            </p>
-                          </div>
-
-                          <Badge className="bg-cyan-100 text-cyan-800">
-                            {(Number(item.confidence || 0) * 100).toFixed(1)}%
-                          </Badge>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-4 border rounded-xl bg-gray-50">
-                        <p className="text-sm text-gray-500">
-                          Tidak ada detail deteksi dari backend.
-                        </p>
                       </div>
-                    )}
-                  </div>
+                    </div>
 
-                  <div className="text-sm text-gray-500 border-t pt-4">
-                    <p>Dibuat pada: {formattedCreatedAt}</p>
-                    <p>
-                      Data ini belum masuk riwayat sebelum tombol simpan ditekan.
-                    </p>
-                  </div>
+                    <div className="rounded-2xl border border-slate-200 bg-green-50 p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Tag className="h-4 w-4 text-green-700" />
+                        <p className="text-sm text-slate-500">Estimasi Harga</p>
+                      </div>
+                      <p className="text-2xl font-serif font-black text-green-700">
+                        {formatCurrency(totalEstimatedPrice, "IDR")}
+                      </p>
+                    </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Button
-                      onClick={handleSaveToHistory}
-                      className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                    <div className="text-sm text-slate-500 border-t border-slate-200 pt-4">
+                      <p>Waktu deteksi: {formattedCreatedAt}</p>
+                      <p>Data audit sudah otomatis disimpan.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <Link href="/history">
+                        <Button className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">
+                          <History className="h-4 w-4 mr-2" />
+                          Lihat Riwayat
+                        </Button>
+                      </Link>
+
+                      <Link href="/classify">
+                        <Button variant="outline" className="w-full">
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Deteksi Baru
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="border-slate-200 bg-white shadow-sm">
+                <CardHeader className="border-b border-slate-200">
+                  <CardTitle className="text-xl font-serif font-bold text-slate-950">
+                    Tabel Data Audit
+                  </CardTitle>
+                </CardHeader>
+
+                <CardContent className="p-5 space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                      <Input
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                        placeholder="Cari kategori sampah..."
+                        className="pl-9"
+                      />
+                    </div>
+
+                    <select
+                      value={categoryFilter}
+                      onChange={(event) => setCategoryFilter(event.target.value)}
+                      className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm"
                     >
-                      {saved ? (
-                        <>
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Tersimpan
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          Simpan ke Riwayat
-                        </>
-                      )}
-                    </Button>
+                      <option value="all">Semua kategori</option>
+                      {categories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
 
-                    <Link href="/history">
-                      <Button variant="outline" className="w-full">
-                        <History className="h-4 w-4 mr-2" />
-                        Lihat Riwayat
-                      </Button>
-                    </Link>
+                    <select
+                      value={sortBy}
+                      onChange={(event) =>
+                        setSortBy(event.target.value as "latest" | "confidence" | "label")
+                      }
+                      className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm"
+                    >
+                      <option value="latest">Urutan deteksi</option>
+                      <option value="confidence">Confidence tertinggi</option>
+                      <option value="label">Kategori A-Z</option>
+                    </select>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50 text-slate-600">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-semibold">No</th>
+                          <th className="px-4 py-3 text-left font-semibold">Jenis Sampah</th>
+                          <th className="px-4 py-3 text-left font-semibold">
+                            <span className="inline-flex items-center gap-1">
+                              Confidence <ArrowUpDown className="h-3.5 w-3.5" />
+                            </span>
+                          </th>
+                          <th className="px-4 py-3 text-left font-semibold">Bounding Box</th>
+                          <th className="px-4 py-3 text-left font-semibold">Harga</th>
+                          <th className="px-4 py-3 text-left font-semibold">Waktu Deteksi</th>
+                        </tr>
+                      </thead>
+
+                      <tbody className="divide-y divide-slate-200">
+                        {filteredDetections.length > 0 ? (
+                          filteredDetections.map((item, index) => (
+                            <tr key={`${item.label}-${index}`} className="hover:bg-slate-50">
+                              <td className="px-4 py-3 text-slate-500">{index + 1}</td>
+                              <td className="px-4 py-3 font-semibold text-slate-900">
+                                {item.label}
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge className="bg-cyan-100 text-cyan-800 hover:bg-cyan-100">
+                                  {(item.confidence * 100).toFixed(1)}%
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3 text-slate-500">
+                                x1:{item.bbox.x1} y1:{item.bbox.y1} x2:{item.bbox.x2} y2:
+                                {item.bbox.y2}
+                              </td>
+                              <td className="px-4 py-3 text-slate-700">
+                                {item.price
+                                  ? formatCurrency(item.price.current_price, item.price.currency)
+                                  : "Harga belum tersedia"}
+                              </td>
+                              <td className="px-4 py-3 text-slate-500">
+                                {formattedCreatedAt}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                              Tidak ada data deteksi yang cocok.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </CardContent>
               </Card>
             </div>
           ) : (
-            <Card className="border-2 border-dashed border-gray-300 bg-gray-50">
+            <Card className="border-2 border-dashed border-slate-300 bg-white">
               <CardContent className="pt-12 text-center pb-12">
-                <ImageIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg mb-2">
+                <ImageIcon className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+                <p className="text-slate-500 text-lg mb-2">
                   Belum ada hasil deteksi terbaru
                 </p>
-                <p className="text-gray-400 text-sm">
+                <p className="text-slate-400 text-sm">
                   Lakukan klasifikasi terlebih dahulu di halaman Klasifikasi.
                 </p>
+
+                <Link href="/classify" className="inline-block mt-6">
+                  <Button className="bg-cyan-600 hover:bg-cyan-700 text-white">
+                    Deteksi Baru
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           )}
