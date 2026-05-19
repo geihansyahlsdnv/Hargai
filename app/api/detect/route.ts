@@ -19,23 +19,64 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const extFromType =
+      file.type === "image/png"
+        ? "png"
+        : file.type === "image/jpeg" || file.type === "image/jpg"
+          ? "jpg"
+          : ""
+
+    const originalName = file.name || ""
+    const hasValidExtension = /\.(jpg|jpeg|png)$/i.test(originalName)
+
+    const safeFileName = hasValidExtension
+      ? originalName
+      : `upload-${Date.now()}.${extFromType || "jpg"}`
+
     const formData = new FormData()
-    formData.append("file", file)
+    formData.append("file", file, safeFileName)
+
+    const headers: HeadersInit = {}
+    if (auth) {
+      headers.Authorization = auth
+    }
 
     const response = await fetch(BACKEND_DETECT_URL, {
       method: "POST",
-      headers: {
-        Authorization: auth || "",
-      },
+      headers,
       body: formData,
     })
 
     const contentType = response.headers.get("content-type") || "application/json"
     const text = await response.text()
 
+    if (!response.ok) {
+      let backendError: any = null
+
+      try {
+        backendError = JSON.parse(text)
+      } catch {
+        backendError = null
+      }
+
+      return NextResponse.json(
+        {
+          message:
+            backendError?.message ||
+            backendError?.detail ||
+            "Request ke backend tidak valid.",
+          detail: backendError?.detail || text,
+          backend_status: response.status,
+        },
+        { status: response.status }
+      )
+    }
+
     return new NextResponse(text, {
       status: response.status,
-      headers: { "Content-Type": contentType },
+      headers: {
+        "Content-Type": contentType,
+      },
     })
   } catch (error: any) {
     return NextResponse.json(

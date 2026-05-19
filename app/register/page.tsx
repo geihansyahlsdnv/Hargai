@@ -93,7 +93,7 @@ export default function RegisterPage() {
             </div>
             <h2 className="text-3xl font-serif font-black text-gray-900">Buat Akun Anda</h2>
             <p className="mt-2 text-gray-600 font-sans">
-              Halaman ini siap dipakai
+              
             </p>
           </div>
 

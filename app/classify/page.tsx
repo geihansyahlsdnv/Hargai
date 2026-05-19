@@ -12,10 +12,21 @@ import {
   X,
   Circle,
   Database,
+  Tag,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useRef } from "react"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
+
+type WastePrice = {
+  id: string
+  name: string
+  category: string
+  unit: string
+  current_price: number | string | null
+  currency: string
+}
 
 type BackendDetection = {
   label: string
@@ -26,6 +37,7 @@ type BackendDetection = {
     x2: number
     y2: number
   }
+  price?: WastePrice | null
 }
 
 type DetectWasteResponse = {
@@ -36,6 +48,38 @@ type DetectWasteResponse = {
   top_prediction: string
   created_at: string
   raw_response?: unknown
+}
+
+const normalizeLabel = (value: string) => {
+  return value.trim().toLowerCase().replace(/[_-]/g, " ")
+}
+
+const formatCurrency = (
+  value: number | string | null | undefined,
+  currency = "IDR"
+) => {
+  const numberValue = Number(value)
+
+  if (value === null || value === undefined || Number.isNaN(numberValue)) {
+    return "Harga belum tersedia"
+  }
+
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(numberValue)
+}
+
+const findWastePrice = (label: string, wasteTypes: WastePrice[]) => {
+  const target = normalizeLabel(label)
+
+  return (
+    wasteTypes.find((item) => normalizeLabel(item.name) === target) ||
+    wasteTypes.find((item) => target.includes(normalizeLabel(item.name))) ||
+    wasteTypes.find((item) => normalizeLabel(item.name).includes(target)) ||
+    null
+  )
 }
 
 const normalizeConfidence = (value: unknown): number => {
@@ -112,17 +156,25 @@ const getConfidenceFromItem = (item: any): number => {
   )
 }
 
-const getDetections = (result: any): BackendDetection[] => {
+const getDetections = (
+  result: any,
+  wasteTypes: WastePrice[] = []
+): BackendDetection[] => {
   if (!result) return []
 
   const rawDetections = getRawDetections(result)
 
   if (rawDetections.length > 0) {
-    return rawDetections.map((item: any, index: number) => ({
-      label: getLabelFromItem(item, index),
-      confidence: getConfidenceFromItem(item),
-      bbox: normalizeBBox(item),
-    }))
+    return rawDetections.map((item: any, index: number) => {
+      const label = getLabelFromItem(item, index)
+
+      return {
+        label,
+        confidence: getConfidenceFromItem(item),
+        bbox: normalizeBBox(item),
+        price: findWastePrice(label, wasteTypes),
+      }
+    })
   }
 
   const singleLabel =
@@ -147,9 +199,11 @@ const getDetections = (result: any): BackendDetection[] => {
 
   if (!singleLabel) return []
 
+  const label = String(singleLabel)
+
   return [
     {
-      label: String(singleLabel),
+      label,
       confidence: normalizeConfidence(
         result.confidence ??
           result.score ??
@@ -167,14 +221,15 @@ const getDetections = (result: any): BackendDetection[] => {
         x2: 0,
         y2: 0,
       },
+      price: findWastePrice(label, wasteTypes),
     },
   ]
 }
 
-const getTopPrediction = (result: any): string => {
+const getTopPrediction = (result: any, wasteTypes: WastePrice[] = []): string => {
   if (!result) return "Tidak diketahui"
 
-  const detections = getDetections(result)
+  const detections = getDetections(result, wasteTypes)
 
   return String(
     result.top_prediction ??
@@ -216,9 +271,12 @@ const getImageUrl = (result: any): string => {
   )
 }
 
-const normalizeDetectResponse = (result: any): DetectWasteResponse => {
-  const detections = getDetections(result)
-  const topPrediction = getTopPrediction(result)
+const normalizeDetectResponse = (
+  result: any,
+  wasteTypes: WastePrice[] = []
+): DetectWasteResponse => {
+  const detections = getDetections(result, wasteTypes)
+  const topPrediction = getTopPrediction(result, wasteTypes)
 
   return {
     audit_id: result?.audit_id ?? result?.auditId ?? result?.id ?? `local-${Date.now()}`,
@@ -241,13 +299,19 @@ export default function WasteDetectionPage() {
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [detectResult, setDetectResult] = useState<DetectWasteResponse | null>(null)
+  const [wasteTypes, setWasteTypes] = useState<WastePrice[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isPriceLoading, setIsPriceLoading] = useState(false)
   const [isCameraOpen, setIsCameraOpen] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [errorMessage, setErrorMessage] = useState("")
   const [debugInfo, setDebugInfo] = useState("")
   const [rawBackendResponse, setRawBackendResponse] = useState("")
+  const [imageNaturalSize, setImageNaturalSize] = useState({
+    width: 0,
+    height: 0,
+  })
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -255,6 +319,36 @@ export default function WasteDetectionPage() {
 
   const detections = detectResult?.detections ?? []
   const topPrediction = detectResult?.top_prediction ?? "Tidak diketahui"
+
+  const detectedPrices = useMemo(() => {
+    return detections
+      .map((item) => item.price)
+      .filter((item): item is WastePrice => Boolean(item))
+  }, [detections])
+
+  const totalEstimatedPrice = useMemo(() => {
+    return detectedPrices.reduce((total, item) => {
+      const price = Number(item.current_price)
+      return total + (Number.isNaN(price) ? 0 : price)
+    }, 0)
+  }, [detectedPrices])
+
+  useEffect(() => {
+    const fetchWasteTypes = async () => {
+      setIsPriceLoading(true)
+
+      try {
+        const { data } = await api.get("/waste-types")
+        setWasteTypes(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error("Gagal mengambil data harga sampah:", error)
+      } finally {
+        setIsPriceLoading(false)
+      }
+    }
+
+    fetchWasteTypes()
+  }, [])
 
   useEffect(() => {
     if (isCameraOpen && stream && videoRef.current) {
@@ -279,6 +373,7 @@ export default function WasteDetectionPage() {
     setErrorMessage("")
     setDebugInfo("")
     setRawBackendResponse("")
+    setImageNaturalSize({ width: 0, height: 0 })
 
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -318,6 +413,7 @@ export default function WasteDetectionPage() {
     setPreviewImage(preview)
     setSelectedFile(file)
     setDetectResult(null)
+    setImageNaturalSize({ width: 0, height: 0 })
 
     try {
       setDebugInfo(`File: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`)
@@ -334,13 +430,25 @@ export default function WasteDetectionPage() {
         return
       }
 
+      let latestWasteTypes = wasteTypes
+
+      if (latestWasteTypes.length === 0) {
+        try {
+          const { data: wasteData } = await api.get("/waste-types")
+          latestWasteTypes = Array.isArray(wasteData) ? wasteData : []
+          setWasteTypes(latestWasteTypes)
+        } catch (error) {
+          console.error("Gagal mengambil data harga sebelum deteksi:", error)
+        }
+      }
+
       const formData = new FormData()
       formData.append("file", file)
 
       const { data } = await api.post("/detect", formData)
 
       const normalizedData = {
-        ...normalizeDetectResponse(data),
+        ...normalizeDetectResponse(data, latestWasteTypes),
         preview_image: preview,
       }
 
@@ -368,9 +476,9 @@ export default function WasteDetectionPage() {
       } else if (status === 401) {
         message = "Sesi login habis. Silakan login kembali."
       } else if (status === 503) {
-        message = errorData?.message || "Backend deteksi sedang tidak bisa dijangkau."
+        message = errorData?.message || errorData?.detail || "Backend deteksi sedang tidak bisa dijangkau."
       } else if (status === 400) {
-        message = errorData?.message || "Request tidak valid."
+        message = errorData?.message || errorData?.detail || "Request tidak valid."
       } else if (!status) {
         message = "Koneksi ke server gagal. Cek backend dan base URL."
       }
@@ -457,6 +565,7 @@ export default function WasteDetectionPage() {
     setErrorMessage("")
     setDebugInfo("")
     setRawBackendResponse("")
+    setImageNaturalSize({ width: 0, height: 0 })
 
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
@@ -474,7 +583,7 @@ export default function WasteDetectionPage() {
               Deteksi <span className="text-cyan-600">Sampah</span>
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto font-sans">
-              Unggah gambar atau ambil foto, lalu AI akan melakukan klasifikasi.
+              Unggah gambar atau ambil foto, lalu AI YOLOv8 akan melakukan klasifikasi sampah dan menampilkan estimasi harga.
             </p>
           </div>
         </div>
@@ -545,6 +654,22 @@ export default function WasteDetectionPage() {
                     Reset
                   </Button>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg bg-white">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <Tag className="h-5 w-5 text-amber-600" />
+                  <p className="font-serif font-bold text-gray-900">
+                    Data Harga Sampah
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {isPriceLoading
+                    ? "Mengambil data harga..."
+                    : `${wasteTypes.length} jenis sampah aktif tersedia.`}
+                </p>
               </CardContent>
             </Card>
 
@@ -638,7 +763,7 @@ export default function WasteDetectionPage() {
               <Card className="border-0 shadow-lg overflow-hidden">
                 <CardHeader>
                   <CardTitle className="text-xl font-serif font-bold text-gray-900">
-                    Preview Gambar
+                    Preview Gambar dan Bounding Box
                   </CardTitle>
                 </CardHeader>
 
@@ -648,7 +773,61 @@ export default function WasteDetectionPage() {
                       src={previewImage}
                       alt="Preview"
                       className="w-full h-auto"
+                      onLoad={(event) => {
+                        setImageNaturalSize({
+                          width: event.currentTarget.naturalWidth,
+                          height: event.currentTarget.naturalHeight,
+                        })
+                      }}
                     />
+
+                    {!isLoading &&
+                      detections.map((result, index) => {
+                        const hasValidBox =
+                          result.bbox.x2 > result.bbox.x1 &&
+                          result.bbox.y2 > result.bbox.y1 &&
+                          imageNaturalSize.width > 0 &&
+                          imageNaturalSize.height > 0
+
+                        if (!hasValidBox) return null
+
+                        const isNormalizedBox =
+                          result.bbox.x2 <= 1 &&
+                          result.bbox.y2 <= 1
+
+                        const left = isNormalizedBox
+                          ? result.bbox.x1 * 100
+                          : (result.bbox.x1 / imageNaturalSize.width) * 100
+
+                        const top = isNormalizedBox
+                          ? result.bbox.y1 * 100
+                          : (result.bbox.y1 / imageNaturalSize.height) * 100
+
+                        const width = isNormalizedBox
+                          ? (result.bbox.x2 - result.bbox.x1) * 100
+                          : ((result.bbox.x2 - result.bbox.x1) / imageNaturalSize.width) * 100
+
+                        const height = isNormalizedBox
+                          ? (result.bbox.y2 - result.bbox.y1) * 100
+                          : ((result.bbox.y2 - result.bbox.y1) / imageNaturalSize.height) * 100
+
+                        return (
+                          <div
+                            key={`bbox-${result.label}-${index}`}
+                            className="absolute border-2 border-cyan-400 rounded-md pointer-events-none"
+                            style={{
+                              left: `${left}%`,
+                              top: `${top}%`,
+                              width: `${width}%`,
+                              height: `${height}%`,
+                            }}
+                          >
+                            <div className="absolute -top-8 left-0 bg-cyan-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                              {result.label} • {(result.confidence * 100).toFixed(1)}%
+                            </div>
+                          </div>
+                        )
+                      })}
 
                     {isLoading ? (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -668,7 +847,7 @@ export default function WasteDetectionPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-xl font-serif font-bold text-gray-900">
-                      Hasil Deteksi  AI
+                      Hasil Deteksi AI
                     </CardTitle>
                     <Badge className="bg-green-100 text-green-800">
                       Berhasil
@@ -677,7 +856,7 @@ export default function WasteDetectionPage() {
                 </CardHeader>
 
                 <CardContent className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="border border-gray-200 bg-cyan-50">
                       <CardContent className="pt-4">
                         <p className="text-sm text-gray-600 mb-1">
@@ -699,11 +878,22 @@ export default function WasteDetectionPage() {
                         </p>
                       </CardContent>
                     </Card>
+
+                    <Card className="border border-gray-200 bg-green-50">
+                      <CardContent className="pt-4">
+                        <p className="text-sm text-gray-600 mb-1">
+                          Estimasi Harga
+                        </p>
+                        <p className="text-2xl font-serif font-bold text-green-700">
+                          {formatCurrency(totalEstimatedPrice, "IDR")}
+                        </p>
+                      </CardContent>
+                    </Card>
                   </div>
 
                   <div className="space-y-3">
                     <h3 className="font-serif font-bold text-gray-900">
-                      Detail Deteksi
+                      Detail Deteksi dan Harga
                     </h3>
 
                     <div className="space-y-2">
@@ -711,7 +901,7 @@ export default function WasteDetectionPage() {
                         detections.map((result, index) => (
                           <div
                             key={`${result.label}-${index}`}
-                            className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 gap-4"
+                            className="flex flex-col md:flex-row md:items-center md:justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 gap-4"
                           >
                             <div>
                               <p className="font-serif font-bold text-gray-900">
@@ -723,12 +913,28 @@ export default function WasteDetectionPage() {
                                 {result.bbox?.x2 ?? "-"},{" "}
                                 {result.bbox?.y2 ?? "-"})
                               </p>
+                              <p className="text-sm text-gray-500">
+                                Harga:{" "}
+                                <span className="font-semibold text-green-700">
+                                  {result.price
+                                    ? `${formatCurrency(
+                                        result.price.current_price,
+                                        result.price.currency
+                                      )} / ${result.price.unit}`
+                                    : "Belum cocok dengan data harga"}
+                                </span>
+                              </p>
                             </div>
 
-                            <div className="text-right">
+                            <div className="text-left md:text-right space-y-2">
                               <Badge className="bg-cyan-100 text-cyan-800">
-                                {(result.confidence * 100).toFixed(1)}%
+                                Confidence {(result.confidence * 100).toFixed(1)}%
                               </Badge>
+                              {result.price ? (
+                                <Badge className="bg-green-100 text-green-800 block w-fit md:ml-auto">
+                                  {result.price.category}
+                                </Badge>
+                              ) : null}
                             </div>
                           </div>
                         ))
@@ -756,7 +962,7 @@ export default function WasteDetectionPage() {
                     className="w-full bg-amber-600 hover:bg-amber-700 text-white py-6 text-lg font-bold"
                   >
                     <Database className="h-5 w-5 mr-2" />
-                    Lanjut ke Audit
+                    Simpan dan Lanjut ke Audit
                   </Button>
                 </CardContent>
               </Card>
@@ -770,7 +976,7 @@ export default function WasteDetectionPage() {
                     Pilih gambar untuk memulai deteksi sampah
                   </p>
                   <p className="text-gray-400 text-sm">
-                    AI akan memproses gambar Anda
+                    AI akan memproses gambar, menampilkan bounding box, label, confidence, dan harga sampah.
                   </p>
                 </CardContent>
               </Card>
