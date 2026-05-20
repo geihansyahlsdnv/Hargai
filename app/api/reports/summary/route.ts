@@ -13,7 +13,9 @@ const noStoreHeaders = {
 
 function normalizeConfidence(value: unknown): number {
   const n = Number(value)
+
   if (Number.isNaN(n)) return 0
+
   return n > 1 ? n / 100 : n
 }
 
@@ -53,19 +55,37 @@ function buildSummary(audits: any[]) {
       confidenceCount += 1
     }
 
-    const date = String(audit?.created_at ?? audit?.createdAt ?? "")
-      .slice(0, 10)
+    const date = String(
+      audit?.created_at ?? audit?.createdAt ?? audit?.timestamp ?? ""
+    ).slice(0, 10)
 
     if (date) {
       dailyMap.set(date, (dailyMap.get(date) ?? 0) + 1)
     }
 
-    for (const det of detections) {
-      const label = String(
-        det?.label ?? det?.class_name ?? det?.name ?? "Tidak diketahui"
-      )
+    if (detections.length > 0) {
+      for (const detection of detections) {
+        const label = String(
+          detection?.label ??
+            detection?.class_name ??
+            detection?.name ??
+            "Tidak diketahui"
+        )
 
-      categoryMap.set(label, (categoryMap.get(label) ?? 0) + 1)
+        categoryMap.set(label, (categoryMap.get(label) ?? 0) + 1)
+      }
+    } else {
+      const fallbackLabel =
+        audit?.top_label ??
+        audit?.label ??
+        audit?.top_prediction ??
+        audit?.prediction ??
+        audit?.category
+
+      if (fallbackLabel) {
+        const label = String(fallbackLabel)
+        categoryMap.set(label, (categoryMap.get(label) ?? 0) + 1)
+      }
     }
   }
 
@@ -75,11 +95,17 @@ function buildSummary(audits: any[]) {
     average_confidence:
       confidenceCount > 0 ? confidenceSum / confidenceCount : 0,
     category_distribution: Array.from(categoryMap.entries()).map(
-      ([label, count]) => ({ label, count })
+      ([label, count]) => ({
+        label,
+        count,
+      })
     ),
     daily_trend: Array.from(dailyMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, count]) => ({ date, count })),
+      .map(([date, count]) => ({
+        date,
+        count,
+      })),
   }
 }
 

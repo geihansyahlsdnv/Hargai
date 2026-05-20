@@ -41,10 +41,15 @@ import {
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+type CategoryEntry = {
+  label: string
+  count: number
+}
 
-type CategoryEntry = { label: string; count: number }
-type DailyEntry = { date: string; count: number }
+type DailyEntry = {
+  date: string
+  count: number
+}
 
 type ReportsSummary = {
   total_audits: number
@@ -53,8 +58,6 @@ type ReportsSummary = {
   category_distribution: CategoryEntry[]
   daily_trend: DailyEntry[]
 }
-
-// ── Constants ─────────────────────────────────────────────────────────────────
 
 const PIE_COLORS = [
   "#10b981",
@@ -67,40 +70,49 @@ const PIE_COLORS = [
   "#ec4899",
 ]
 
-// ── Custom Tooltips ───────────────────────────────────────────────────────────
-
 function CustomBarTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
+
   return (
     <div className="rounded-xl bg-white border border-gray-100 shadow-xl p-3 text-sm">
       <p className="font-serif font-bold text-gray-900 mb-1">{label}</p>
-      <p className="text-cyan-600 font-semibold">{payload[0].value} audit</p>
+      <p className="text-cyan-600 font-semibold">
+        {payload[0].value} audit
+      </p>
     </div>
   )
 }
 
 function CustomLineTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
+
   return (
     <div className="rounded-xl bg-white border border-gray-100 shadow-xl p-3 text-sm">
       <p className="font-bold text-gray-900 mb-1">{label}</p>
-      <p className="text-emerald-600 font-semibold">{payload[0].value} audit</p>
+      <p className="text-emerald-600 font-semibold">
+        {payload[0].value} audit
+      </p>
     </div>
   )
 }
 
 function CustomPieTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null
+
   return (
     <div className="rounded-xl bg-white border border-gray-100 shadow-xl p-3 text-sm">
-      <p className="font-serif font-bold text-gray-900 mb-1">{payload[0].name}</p>
-      <p className="text-violet-600 font-semibold">{payload[0].value} audit</p>
-      <p className="text-gray-400 text-xs">{payload[0].payload.percent?.toFixed(1)}%</p>
+      <p className="font-serif font-bold text-gray-900 mb-1">
+        {payload[0].name}
+      </p>
+      <p className="text-violet-600 font-semibold">
+        {payload[0].value} audit
+      </p>
+      <p className="text-gray-400 text-xs">
+        {payload[0].payload.percent?.toFixed(1)}%
+      </p>
     </div>
   )
 }
-
-// ── Stat Card ─────────────────────────────────────────────────────────────────
 
 function StatCard({
   label,
@@ -116,15 +128,17 @@ function StatCard({
   return (
     <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
       <CardContent className="p-6">
-        <div className={`p-2 rounded-xl ${accent} w-fit mb-4`}>{icon}</div>
+        <div className={`p-2 rounded-xl ${accent} w-fit mb-4`}>
+          {icon}
+        </div>
         <p className="text-sm text-gray-500 mb-1">{label}</p>
-        <p className="text-3xl font-serif font-bold text-gray-900 break-words">{value}</p>
+        <p className="text-3xl font-serif font-bold text-gray-900 break-words">
+          {value}
+        </p>
       </CardContent>
     </Card>
   )
 }
-
-// ── Filter Bar ────────────────────────────────────────────────────────────────
 
 function FilterBar({
   activeRange,
@@ -146,20 +160,21 @@ function FilterBar({
           { label: "7 Hari", value: "7d" },
           { label: "30 Hari", value: "30d" },
           { label: "Semua", value: "all" },
-        ].map((r) => (
+        ].map((range) => (
           <button
-            key={r.value}
-            onClick={() => onRangeChange(r.value)}
+            key={range.value}
+            onClick={() => onRangeChange(range.value)}
             className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-              activeRange === r.value
+              activeRange === range.value
                 ? "bg-cyan-600 text-white shadow-sm"
                 : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
             }`}
           >
-            {r.label}
+            {range.label}
           </button>
         ))}
       </div>
+
       <div className="flex items-center gap-3">
         <Button
           onClick={onRefresh}
@@ -168,9 +183,12 @@ function FilterBar({
           className="border-gray-200 text-gray-700 hover:bg-gray-50"
           size="sm"
         >
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+          />
           Perbarui
         </Button>
+
         <Button
           onClick={onExport}
           className="bg-cyan-600 hover:bg-cyan-700 text-white"
@@ -184,8 +202,6 @@ function FilterBar({
   )
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function ReportsAnalyticsPage() {
   const [summary, setSummary] = useState<ReportsSummary | null>(null)
   const [loading, setLoading] = useState(true)
@@ -195,17 +211,23 @@ export default function ReportsAnalyticsPage() {
   const fetchData = async () => {
     setLoading(true)
     setError(null)
+
     try {
       const token = localStorage.getItem("access_token")
+
       const res = await fetch("/api/reports/summary", {
-        headers: { Authorization: `Bearer ${token ?? ""}` },
+        headers: {
+          Authorization: `Bearer ${token ?? ""}`,
+        },
         cache: "no-store",
       })
+
       if (!res.ok) {
-        setError(`Gagal memuat data (${res.status}).`)
+        setError(`Gagal memuat data laporan (${res.status}).`)
         setSummary(null)
         return
       }
+
       const data: ReportsSummary = await res.json()
       setSummary(data)
     } catch {
@@ -216,68 +238,111 @@ export default function ReportsAnalyticsPage() {
     }
   }
 
-  useEffect(() => { fetchData() }, [])
-
-  // ── Derived data ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    fetchData()
+  }, [])
 
   const distributionData = useMemo(() => {
     if (!summary) return []
-    const total = summary.category_distribution.reduce((s, e) => s + e.count, 0)
-    return summary.category_distribution.map((e) => ({
-      name: e.label,
-      value: e.count,
-      percent: total > 0 ? (e.count / total) * 100 : 0,
+
+    const categories = Array.isArray(summary.category_distribution)
+      ? summary.category_distribution
+      : []
+
+    const total = categories.reduce((sum, entry) => {
+      return sum + Number(entry.count ?? 0)
+    }, 0)
+
+    return categories.map((entry) => ({
+      name: entry.label,
+      value: Number(entry.count ?? 0),
+      percent: total > 0 ? (Number(entry.count ?? 0) / total) * 100 : 0,
     }))
   }, [summary])
 
   const trendData = useMemo(() => {
     if (!summary) return []
-    let entries = summary.daily_trend
-    if (activeRange === "7d") entries = entries.slice(-7)
-    else if (activeRange === "30d") entries = entries.slice(-30)
-    return entries.map((e) => ({
-      label: new Date(e.date + "T00:00:00").toLocaleDateString("id-ID", {
+
+    let entries = Array.isArray(summary.daily_trend)
+      ? summary.daily_trend
+      : []
+
+    if (activeRange === "7d") {
+      entries = entries.slice(-7)
+    } else if (activeRange === "30d") {
+      entries = entries.slice(-30)
+    }
+
+    return entries.map((entry) => ({
+      label: new Date(`${entry.date}T00:00:00`).toLocaleDateString("id-ID", {
         day: "2-digit",
         month: "short",
       }),
-      total: e.count,
+      total: Number(entry.count ?? 0),
     }))
   }, [summary, activeRange])
 
   const dominantCategory = useMemo(() => {
     if (!distributionData.length) return null
+
     return [...distributionData].sort((a, b) => b.value - a.value)[0].name
   }, [distributionData])
 
   const trendDelta = useMemo(() => {
     if (trendData.length < 2) return null
+
     const last = trendData[trendData.length - 1].total
     const prev = trendData[trendData.length - 2].total
+
     if (prev === 0) return null
+
     const pct = Math.round(((last - prev) / prev) * 100)
-    return { pct, direction: pct >= 0 ? "up" : "down" } as const
+
+    return {
+      pct,
+      direction: pct >= 0 ? "up" : "down",
+    } as const
   }, [trendData])
+
+  const hasSummary = !!summary
+  const hasCategoryData = distributionData.length > 0
+  const hasTrendData = trendData.length > 0
+  const hasChartData = hasCategoryData || hasTrendData
 
   const handleExport = () => {
     if (!summary) return
+
     const blob = new Blob(
-      [JSON.stringify({ exported_at: new Date().toISOString(), summary }, null, 2)],
-      { type: "application/json" }
+      [
+        JSON.stringify(
+          {
+            exported_at: new Date().toISOString(),
+            summary,
+          },
+          null,
+          2
+        ),
+      ],
+      {
+        type: "application/json",
+      }
     )
+
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
+
     a.href = url
     a.download = `laporan-analitik-${Date.now()}.json`
     a.click()
+
     URL.revokeObjectURL(url)
   }
-
-  // ── Loading ───────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />
+
         <section className="bg-gradient-to-br from-gray-50 to-white py-16 border-b border-gray-100">
           <div className="max-w-7xl mx-auto px-4 text-center">
             <h1 className="text-4xl md:text-5xl font-serif font-black text-gray-900 mb-4">
@@ -285,6 +350,7 @@ export default function ReportsAnalyticsPage() {
             </h1>
           </div>
         </section>
+
         <div className="max-w-7xl mx-auto px-4 py-12">
           <Card className="border-0 shadow-sm">
             <CardContent className="p-10 text-center">
@@ -297,29 +363,29 @@ export default function ReportsAnalyticsPage() {
     )
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
 
-      {/* Hero */}
       <section className="bg-gradient-to-br from-gray-50 to-white py-16 border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl font-serif font-black text-gray-900 mb-4">
             Laporan &amp; <span className="text-cyan-600">Analitik</span>
           </h1>
+
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Visualisasi data hasil audit sampah dari seluruh sesi deteksi.
           </p>
         </div>
       </section>
 
-      {/* Error state */}
       {error && (
         <div className="max-w-7xl mx-auto px-4 pt-8">
           <div className="rounded-xl bg-red-50 border border-red-200 px-5 py-4 flex items-center justify-between gap-4">
-            <p className="text-red-700 text-sm font-semibold">{error}</p>
+            <p className="text-red-700 text-sm font-semibold">
+              {error}
+            </p>
+
             <Button
               onClick={fetchData}
               size="sm"
@@ -333,7 +399,6 @@ export default function ReportsAnalyticsPage() {
         </div>
       )}
 
-      {/* Stat Cards */}
       <section className="py-8">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
           <StatCard
@@ -342,12 +407,14 @@ export default function ReportsAnalyticsPage() {
             icon={<FileText className="w-5 h-5 text-cyan-600" />}
             accent="bg-cyan-50"
           />
+
           <StatCard
             label="Total Objek Terdeteksi"
             value={summary?.total_objects ?? 0}
             icon={<Package className="w-5 h-5 text-violet-600" />}
             accent="bg-violet-50"
           />
+
           <StatCard
             label="Rata-rata Confidence"
             value={
@@ -358,6 +425,7 @@ export default function ReportsAnalyticsPage() {
             icon={<Target className="w-5 h-5 text-amber-600" />}
             accent="bg-amber-50"
           />
+
           <StatCard
             label="Kategori Unik"
             value={distributionData.length}
@@ -367,7 +435,6 @@ export default function ReportsAnalyticsPage() {
         </div>
       </section>
 
-      {/* Dominant category banner */}
       {dominantCategory && (
         <section className="pb-2">
           <div className="max-w-7xl mx-auto px-4">
@@ -376,24 +443,31 @@ export default function ReportsAnalyticsPage() {
                 <p className="text-cyan-100 text-xs font-semibold uppercase tracking-widest mb-1">
                   Kategori Paling Banyak Terdeteksi
                 </p>
-                <p className="text-white text-2xl font-serif font-bold">{dominantCategory}</p>
+
+                <p className="text-white text-2xl font-serif font-bold">
+                  {dominantCategory}
+                </p>
               </div>
+
               <TrendingUp className="w-10 h-10 text-white/40 shrink-0" />
             </div>
           </div>
         </section>
       )}
 
-      {/* Charts */}
-      {!summary || distributionData.length === 0 ? (
+      {!hasSummary || !hasChartData ? (
         <section className="py-10">
           <div className="max-w-7xl mx-auto px-4">
             <Card className="border-0 shadow-sm">
               <CardContent className="p-12 text-center">
                 <BarChart3 className="h-16 w-16 text-gray-200 mx-auto mb-4" />
+
                 <p className="text-gray-500 text-lg mb-4">
-                  {error ? "Data tidak dapat dimuat dari server." : "Belum ada data audit untuk dianalisis."}
+                  {error
+                    ? "Data tidak dapat dimuat dari server."
+                    : "Belum ada data audit untuk dianalisis."}
                 </p>
+
                 {!error && (
                   <Link href="/classify">
                     <Button className="bg-cyan-600 hover:bg-cyan-700 text-white">
@@ -416,189 +490,367 @@ export default function ReportsAnalyticsPage() {
               loading={loading}
             />
 
-            {/* Bar + Pie */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <Card className="border-0 shadow-md">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-gray-900">
-                    <BarChart3 className="w-5 h-5 text-cyan-600" />
-                    Distribusi Kategori
-                  </CardTitle>
-                  <CardDescription>Jumlah audit per kategori sampah.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[340px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={distributionData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                        <Tooltip content={<CustomBarTooltip />} />
-                        <Bar dataKey="value" name="Jumlah Audit" radius={[8, 8, 0, 0]}>
-                          {distributionData.map((entry, i) => (
-                            <Cell key={entry.name} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 shadow-md">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-gray-900">
-                    <PieChartIcon className="w-5 h-5 text-violet-600" />
-                    Proporsi Kategori
-                  </CardTitle>
-                  <CardDescription>Distribusi proporsi tiap kategori.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[340px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={distributionData}
-                          cx="50%"
-                          cy="45%"
-                          outerRadius={110}
-                          innerRadius={48}
-                          dataKey="value"
-                          nameKey="name"
-                          paddingAngle={2}
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          labelLine={false}
-                        >
-                          {distributionData.map((entry, i) => (
-                            <Cell key={entry.name} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip content={<CustomPieTooltip />} />
-                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "12px" }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Line Chart */}
-            <Card className="border-0 shadow-md">
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                  <div>
+            {hasCategoryData && (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <Card className="border-0 shadow-md">
+                  <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-gray-900">
-                      <CalendarRange className="w-5 h-5 text-emerald-600" />
-                      Tren Audit per Hari
+                      <BarChart3 className="w-5 h-5 text-cyan-600" />
+                      Distribusi Kategori
                     </CardTitle>
-                    <CardDescription>
-                      {activeRange === "7d" ? "7 hari terakhir" : activeRange === "30d" ? "30 hari terakhir" : "Semua periode"} berdasarkan jumlah audit harian.
-                    </CardDescription>
-                  </div>
-                  {trendDelta && (
-                    <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold ${trendDelta.direction === "up" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>
-                      {trendDelta.direction === "up"
-                        ? <ArrowUpRight className="w-4 h-4" />
-                        : <ArrowDownRight className="w-4 h-4" />}
-                      {Math.abs(trendDelta.pct)}% vs kemarin
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[380px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={trendData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                      <Tooltip content={<CustomLineTooltip />} />
-                      <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "12px" }} />
-                      <Line
-                        type="monotone"
-                        dataKey="total"
-                        name="Jumlah Audit"
-                        stroke="#10b981"
-                        strokeWidth={3}
-                        dot={{ r: 5, fill: "#10b981", strokeWidth: 0 }}
-                        activeDot={{ r: 7, fill: "#059669" }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Category Table */}
-            <Card className="border-0 shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-gray-900">
-                  <Layers className="w-5 h-5 text-amber-600" />
-                  Ringkasan Per Kategori
-                </CardTitle>
-                <CardDescription>Detail jumlah dan proporsi setiap kategori sampah.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="text-left py-3 px-4 text-gray-500 font-semibold">Kategori</th>
-                        <th className="text-center py-3 px-4 text-gray-500 font-semibold">Jumlah</th>
-                        <th className="text-center py-3 px-4 text-gray-500 font-semibold">Proporsi</th>
-                        <th className="py-3 px-4" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...distributionData]
-                        .sort((a, b) => b.value - a.value)
-                        .map((entry, i) => (
-                          <tr key={entry.name} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-3 h-3 rounded-full shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
-                                <span className="font-semibold text-gray-900">{entry.name}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-center font-bold text-gray-900">{entry.value}</td>
-                            <td className="py-3 px-4 text-center text-gray-600">{entry.percent.toFixed(1)}%</td>
-                            <td className="py-3 px-4">
-                              <div className="w-full bg-gray-100 rounded-full h-2">
-                                <div
-                                  className="h-2 rounded-full"
-                                  style={{ width: `${entry.percent}%`, background: PIE_COLORS[i % PIE_COLORS.length] }}
-                                />
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+                    <CardDescription>
+                      Jumlah audit per kategori sampah.
+                    </CardDescription>
+                  </CardHeader>
+
+                  <CardContent>
+                    <div className="h-[340px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={distributionData}
+                          margin={{
+                            top: 4,
+                            right: 8,
+                            left: 0,
+                            bottom: 4,
+                          }}
+                        >
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="#f1f5f9"
+                          />
+
+                          <XAxis
+                            dataKey="name"
+                            tick={{
+                              fontSize: 12,
+                              fill: "#64748b",
+                            }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+
+                          <YAxis
+                            allowDecimals={false}
+                            tick={{
+                              fontSize: 12,
+                              fill: "#64748b",
+                            }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+
+                          <Tooltip content={<CustomBarTooltip />} />
+
+                          <Bar
+                            dataKey="value"
+                            name="Jumlah Audit"
+                            radius={[8, 8, 0, 0]}
+                          >
+                            {distributionData.map((entry, index) => (
+                              <Cell
+                                key={entry.name}
+                                fill={PIE_COLORS[index % PIE_COLORS.length]}
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-0 shadow-md">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-gray-900">
+                      <PieChartIcon className="w-5 h-5 text-violet-600" />
+                      Proporsi Kategori
+                    </CardTitle>
+
+                    <CardDescription>
+                      Distribusi proporsi tiap kategori.
+                    </CardDescription>
+                  </CardHeader>
+
+                  <CardContent>
+                    <div className="h-[340px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={distributionData}
+                            cx="50%"
+                            cy="45%"
+                            outerRadius={110}
+                            innerRadius={48}
+                            dataKey="value"
+                            nameKey="name"
+                            paddingAngle={2}
+                            label={({ name, percent }) =>
+                              `${name} ${(percent * 100).toFixed(0)}%`
+                            }
+                            labelLine={false}
+                          >
+                            {distributionData.map((entry, index) => (
+                              <Cell
+                                key={entry.name}
+                                fill={PIE_COLORS[index % PIE_COLORS.length]}
+                              />
+                            ))}
+                          </Pie>
+
+                          <Tooltip content={<CustomPieTooltip />} />
+
+                          <Legend
+                            iconType="circle"
+                            iconSize={8}
+                            wrapperStyle={{
+                              fontSize: "12px",
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {hasTrendData && (
+              <Card className="border-0 shadow-md">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-gray-900">
+                        <CalendarRange className="w-5 h-5 text-emerald-600" />
+                        Tren Audit per Hari
+                      </CardTitle>
+
+                      <CardDescription>
+                        {activeRange === "7d"
+                          ? "7 hari terakhir"
+                          : activeRange === "30d"
+                            ? "30 hari terakhir"
+                            : "Semua periode"}{" "}
+                        berdasarkan jumlah audit harian.
+                      </CardDescription>
+                    </div>
+
+                    {trendDelta && (
+                      <div
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold ${
+                          trendDelta.direction === "up"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-red-50 text-red-600"
+                        }`}
+                      >
+                        {trendDelta.direction === "up" ? (
+                          <ArrowUpRight className="w-4 h-4" />
+                        ) : (
+                          <ArrowDownRight className="w-4 h-4" />
+                        )}
+
+                        {Math.abs(trendDelta.pct)}% vs kemarin
+                      </div>
+                    )}
+                  </div>
+                </CardHeader>
+
+                <CardContent>
+                  <div className="h-[380px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={trendData}
+                        margin={{
+                          top: 4,
+                          right: 16,
+                          left: 0,
+                          bottom: 4,
+                        }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="#f1f5f9"
+                        />
+
+                        <XAxis
+                          dataKey="label"
+                          tick={{
+                            fontSize: 12,
+                            fill: "#64748b",
+                          }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+
+                        <YAxis
+                          allowDecimals={false}
+                          tick={{
+                            fontSize: 12,
+                            fill: "#64748b",
+                          }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+
+                        <Tooltip content={<CustomLineTooltip />} />
+
+                        <Legend
+                          iconType="circle"
+                          iconSize={8}
+                          wrapperStyle={{
+                            fontSize: "12px",
+                          }}
+                        />
+
+                        <Line
+                          type="monotone"
+                          dataKey="total"
+                          name="Jumlah Audit"
+                          stroke="#10b981"
+                          strokeWidth={3}
+                          dot={{
+                            r: 5,
+                            fill: "#10b981",
+                            strokeWidth: 0,
+                          }}
+                          activeDot={{
+                            r: 7,
+                            fill: "#059669",
+                          }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {hasCategoryData && (
+              <Card className="border-0 shadow-md">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-gray-900">
+                    <Layers className="w-5 h-5 text-amber-600" />
+                    Ringkasan Per Kategori
+                  </CardTitle>
+
+                  <CardDescription>
+                    Detail jumlah dan proporsi setiap kategori sampah.
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100">
+                          <th className="text-left py-3 px-4 text-gray-500 font-semibold">
+                            Kategori
+                          </th>
+                          <th className="text-center py-3 px-4 text-gray-500 font-semibold">
+                            Jumlah
+                          </th>
+                          <th className="text-center py-3 px-4 text-gray-500 font-semibold">
+                            Proporsi
+                          </th>
+                          <th className="py-3 px-4" />
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {[...distributionData]
+                          .sort((a, b) => b.value - a.value)
+                          .map((entry, index) => (
+                            <tr
+                              key={entry.name}
+                              className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
+                            >
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className="w-3 h-3 rounded-full shrink-0"
+                                    style={{
+                                      background:
+                                        PIE_COLORS[
+                                          index % PIE_COLORS.length
+                                        ],
+                                    }}
+                                  />
+
+                                  <span className="font-semibold text-gray-900">
+                                    {entry.name}
+                                  </span>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4 text-center font-bold text-gray-900">
+                                {entry.value}
+                              </td>
+
+                              <td className="py-3 px-4 text-center text-gray-600">
+                                {entry.percent.toFixed(1)}%
+                              </td>
+
+                              <td className="py-3 px-4">
+                                <div className="w-full bg-gray-100 rounded-full h-2">
+                                  <div
+                                    className="h-2 rounded-full"
+                                    style={{
+                                      width: `${entry.percent}%`,
+                                      background:
+                                        PIE_COLORS[
+                                          index % PIE_COLORS.length
+                                        ],
+                                    }}
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </section>
       )}
 
-      {/* CTA */}
       <section className="py-10 bg-white border-t border-gray-100">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
             <CardContent className="p-8 text-center">
               <FileText className="h-14 w-14 text-cyan-600 mx-auto mb-4" />
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">Riwayat Deteksi</h3>
-              <p className="text-gray-600 mb-6">Lihat seluruh rekam jejak hasil deteksi secara kronologis.</p>
+
+              <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">
+                Riwayat Deteksi
+              </h3>
+
+              <p className="text-gray-600 mb-6">
+                Lihat seluruh rekam jejak hasil deteksi secara kronologis.
+              </p>
+
               <Link href="/history">
-                <Button className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">Buka Riwayat</Button>
+                <Button className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">
+                  Buka Riwayat
+                </Button>
               </Link>
             </CardContent>
           </Card>
+
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
             <CardContent className="p-8 text-center">
               <Download className="h-14 w-14 text-emerald-600 mx-auto mb-4" />
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">Export Laporan</h3>
-              <p className="text-gray-600 mb-6">Unduh data laporan lengkap dalam format JSON.</p>
+
+              <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">
+                Export Laporan
+              </h3>
+
+              <p className="text-gray-600 mb-6">
+                Unduh data laporan lengkap dalam format JSON.
+              </p>
+
               <Button
                 onClick={handleExport}
                 disabled={!summary}
@@ -611,19 +863,30 @@ export default function ReportsAnalyticsPage() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="bg-gray-900 text-white py-12 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
             <div className="md:col-span-2">
-              <h3 className="text-2xl font-serif font-black text-cyan-400 mb-3">HargAI</h3>
+              <h3 className="text-2xl font-serif font-black text-cyan-400 mb-3">
+                HargAI
+              </h3>
+
               <p className="text-gray-400 text-sm leading-relaxed max-w-2xl">
-                HargAI adalah platform klasifikasi sampah berbasis AI yang membantu pengguna mengenali jenis sampah dan melihat estimasi harga secara cepat.
+                HargAI adalah platform klasifikasi sampah berbasis AI yang
+                membantu pengguna mengenali jenis sampah dan melihat estimasi
+                harga secara cepat.
               </p>
             </div>
+
             <div className="md:text-right">
-              <h4 className="text-lg font-serif font-bold mb-4">Mulai Menggunakan</h4>
-              <p className="text-gray-400 text-sm mb-4">Daftar akun untuk mengakses fitur.</p>
+              <h4 className="text-lg font-serif font-bold mb-4">
+                Mulai Menggunakan
+              </h4>
+
+              <p className="text-gray-400 text-sm mb-4">
+                Daftar akun untuk mengakses fitur.
+              </p>
+
               <Link href="/register">
                 <Button className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold">
                   Sign Up / Register
@@ -631,9 +894,15 @@ export default function ReportsAnalyticsPage() {
               </Link>
             </div>
           </div>
+
           <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-gray-400 text-sm">© 2026 HargAI. All rights reserved.</p>
-            <p className="text-gray-500 text-xs">Powered by HargAI Waste Classification System</p>
+            <p className="text-gray-400 text-sm">
+              © 2026 HargAI. All rights reserved.
+            </p>
+
+            <p className="text-gray-500 text-xs">
+              Powered by HargAI Waste Classification System
+            </p>
           </div>
         </div>
       </footer>
