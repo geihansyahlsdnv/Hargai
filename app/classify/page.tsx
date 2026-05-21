@@ -887,6 +887,17 @@ export default function WasteDetectionPage() {
                       )
                     })}
 
+                    {/* Classifier mode: show label as overlay when no valid bbox */}
+                    {liveDetections.length > 0 && !liveDetections.some(
+                      (r) => r.bbox.x2 > r.bbox.x1 && r.bbox.y2 > r.bbox.y1
+                    ) && (
+                      <div className="absolute bottom-3 left-0 right-0 flex justify-center">
+                        <div className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-sans font-bold text-white shadow-lg">
+                          {liveDetections[0].label} • {(liveDetections[0].confidence * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                    )}
+
                     {isLiveProcessing ? (
                       <div className="absolute right-3 top-3 flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-sans font-semibold text-slate-700 shadow-sm">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />

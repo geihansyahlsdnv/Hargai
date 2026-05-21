@@ -120,7 +120,7 @@ const formatCurrency = (value: number | string | null | undefined, currency = "I
 }
 
 function normalizeHistoryItem(item: any): AuditItem {
-  const detections: DetectionItem[] = Array.isArray(item?.detections)
+  const rawDetections: DetectionItem[] = Array.isArray(item?.detections)
     ? item.detections.map((det: any) => ({
         label: String(det?.label ?? det?.class_name ?? det?.name ?? "Tidak diketahui"),
         confidence: normalizeConfidence(det?.confidence ?? det?.score ?? det?.conf ?? 0),
@@ -132,6 +132,20 @@ function normalizeHistoryItem(item: any): AuditItem {
         },
         price: det?.price ?? null,
       }))
+    : []
+
+  // If backend returned no detections (classifier model), synthesize one from top_prediction
+  const topLabelFallback = item?.top_label ?? item?.top_prediction ?? item?.prediction ?? null
+  const confidenceFallback = normalizeConfidence(item?.average_confidence ?? item?.confidence ?? 0)
+  const detections: DetectionItem[] = rawDetections.length > 0
+    ? rawDetections
+    : topLabelFallback
+    ? [{
+        label: String(topLabelFallback),
+        confidence: confidenceFallback,
+        bbox: { x1: 0, y1: 0, x2: 0, y2: 0 },
+        price: null,
+      }]
     : []
 
   const topLabel = String(
