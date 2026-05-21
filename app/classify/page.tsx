@@ -20,6 +20,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
+import { bootstrapAuth } from "@/lib/auth"
 
 type WastePrice = {
   id: string
@@ -339,6 +340,7 @@ export default function WasteDetectionPage() {
   }, [detectedPrices])
 
   useEffect(() => {
+    bootstrapAuth()
     const fetchWasteTypes = async () => {
       setIsPriceLoading(true)
 

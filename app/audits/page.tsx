@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { api } from "@/lib/api"
+import { bootstrapAuth } from "@/lib/auth"
 import Navigation from "@/components/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -266,8 +268,42 @@ export default function AuditPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [sortBy, setSortBy] = useState<"latest" | "confidence" | "label">("latest")
+  const [actualVolume, setActualVolume] = useState<string>("")
+  const [volumeSaving, setVolumeSaving] = useState(false)
+  const [volumeSaved, setVolumeSaved] = useState(false)
+  const [volumeError, setVolumeError] = useState<string | null>(null)
+  const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null)
+
+  const handleSaveVolume = async () => {
+    const auditId = latestAudit?.audit_id
+    if (!auditId || !actualVolume) return
+
+    const volumeNum = parseFloat(actualVolume)
+    if (isNaN(volumeNum) || volumeNum <= 0) {
+      setVolumeError("Masukkan berat yang valid (angka positif)")
+      return
+    }
+
+    setVolumeSaving(true)
+    setVolumeError(null)
+
+    try {
+      const { data } = await api.patch(`/classification/${auditId}/volume`, {
+        actual_volume: volumeNum,
+      })
+      setVolumeSaved(true)
+      if (data?.estimated_price) {
+        setEstimatedPrice(data.estimated_price)
+      }
+    } catch (err: any) {
+      setVolumeError(err?.response?.data?.detail || "Gagal menyimpan berat.")
+    } finally {
+      setVolumeSaving(false)
+    }
+  }
 
   useEffect(() => {
+    bootstrapAuth()
     setMounted(true)
 
     const raw = sessionStorage.getItem("latest_detection_result")
@@ -481,6 +517,44 @@ export default function AuditPage() {
                       <p className="text-2xl font-serif font-black text-green-700">
                         {formatCurrency(totalEstimatedPrice, "IDR")}
                       </p>
+                    </div>
+
+                    {/* Volume input */}
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                      <p className="text-sm font-semibold text-slate-700">Input Berat Aktual</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          placeholder="Berat (kg)"
+                          value={actualVolume}
+                          onChange={(e) => {
+                            setActualVolume(e.target.value)
+                            setVolumeSaved(false)
+                            setVolumeError(null)
+                          }}
+                          className="h-10 flex-1 rounded-md border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        />
+                        <button
+                          onClick={handleSaveVolume}
+                          disabled={volumeSaving || !actualVolume}
+                          className="h-10 rounded-md bg-cyan-600 px-4 text-sm font-semibold text-white hover:bg-cyan-700 disabled:opacity-50"
+                        >
+                          {volumeSaving ? "Menyimpan..." : "Simpan"}
+                        </button>
+                      </div>
+                      {volumeSaved && (
+                        <p className="text-sm text-green-600">Berat berhasil disimpan.</p>
+                      )}
+                      {estimatedPrice !== null && (
+                        <p className="text-sm text-green-700 font-semibold">
+                          Estimasi harga: Rp {estimatedPrice.toLocaleString("id-ID")}
+                        </p>
+                      )}
+                      {volumeError && (
+                        <p className="text-sm text-red-600">{volumeError}</p>
+                      )}
                     </div>
 
                     <div className="text-sm text-slate-500 border-t border-slate-200 pt-4">
