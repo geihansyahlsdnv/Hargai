@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 
 const BACKEND_DETECT_URL =
   process.env.HARGAI_DETECT_URL ||
-  (process.env.HARGAI_BACKEND_URL
-    ? `${process.env.HARGAI_BACKEND_URL}/detect`
+  (process.env.BACKEND_BASE_URL
+    ? `${process.env.BACKEND_BASE_URL}/detect`
     : "https://hargai.site/detect")
 
 export async function POST(req: NextRequest) {

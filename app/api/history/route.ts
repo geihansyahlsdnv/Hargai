@@ -1,29 +1,44 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const BACKEND_BASE_URL =
-  process.env.HARGAI_BACKEND_URL || "https://hargai.site"
+const BACKEND = process.env.BACKEND_BASE_URL ?? "https://hargai.site"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
+const noStoreHeaders = {
+  "Content-Type": "application/json",
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+}
 
 export async function GET(req: NextRequest) {
-  try {
-    const auth = req.headers.get("authorization")
+  const auth = req.headers.get("authorization")
 
-    const response = await fetch(`${BACKEND_BASE_URL}/audits/history`, {
-      method: "GET",
+  try {
+    const response = await fetch(`${BACKEND}/audits/history`, {
       headers: {
         Authorization: auth || "",
       },
+      cache: "no-store",
     })
 
     const text = await response.text()
 
     return new NextResponse(text, {
       status: response.status,
-      headers: { "Content-Type": "application/json" },
+      headers: noStoreHeaders,
     })
-  } catch (error: any) {
+  } catch (err: any) {
     return NextResponse.json(
-      { message: "Backend history tidak dapat dijangkau.", detail: error?.message || "Unknown error" },
-      { status: 503 }
+      {
+        message: "Backend tidak dapat dijangkau.",
+        detail: err?.message,
+      },
+      {
+        status: 503,
+        headers: noStoreHeaders,
+      }
     )
   }
 }
